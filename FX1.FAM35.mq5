@@ -19,7 +19,7 @@
 //|   - On-chart dashboard (status, trades, wins, losses, P/L)        |
 //+------------------------------------------------------------------+
 #property copyright "FX1.FAM35"
-#property version   "1.00"
+#property version   "1.10"
 #property description "FX1.FAM35 - Gold Elliott-Wave EA: Scalp/Swing, 1:3 RR, staged TPs, trailing SL, trend-reversal exit, dashboard."
 
 #include <Trade\Trade.mqh>
@@ -54,7 +54,8 @@ input bool              InpTradingEnabled  = true;       // Enable trading on st
 
 input group             "=== Personal Control / تحكم شخصي ==="
 input ENUM_BOT_STYLE    InpStyle           = STYLE_BOTH; // Trade style: Scalp / Swing / Both
-input ENUM_BOT_DIRECTION InpDirection      = DIR_BOTH;   // Direction: Up / Down / Both
+input ENUM_BOT_DIRECTION InpDirection      = DIR_BOTH;   // Direction: Buy / Sell / Both
+input bool              InpCloseOnDirChange= true;       // Close open trades that violate Buy/Sell/Both
 
 input group             "=== Money Management / إدارة رأس المال ==="
 input ENUM_MM_MODE      InpMMMode          = MM_RISK_PERCENT; // Lot mode
@@ -468,8 +469,16 @@ int ComputeSignal(bool swingProfile,double &entry,double &sl)
      }
   }
 
-bool IsBuyBlocked()  { return(g_direction==DIR_SELL); }
-bool IsSellBlocked() { return(g_direction==DIR_BUY);  }
+// personal direction control: is a given direction (+1 buy / -1 sell) allowed?
+bool DirectionAllows(int dir)
+  {
+   if(g_direction==DIR_BOTH) return(true);
+   if(g_direction==DIR_BUY)  return(dir>0);
+   if(g_direction==DIR_SELL) return(dir<0);
+   return(true);
+  }
+bool IsBuyBlocked()  { return(!DirectionAllows(1));  }
+bool IsSellBlocked() { return(!DirectionAllows(-1)); }
 
 //+------------------------------------------------------------------+
 //| Entry orchestration                                              |
@@ -684,6 +693,15 @@ void ManageOpenPositions()
 
       double price = (dir>0)? SymbolInfoDouble(g_sym,SYMBOL_BID) : SymbolInfoDouble(g_sym,SYMBOL_ASK);
       double rMult = (R>0)? ((price-entry)*dir)/R : 0;
+
+      // ----- enforce personal direction control -----
+      // if the user switched to Buy-only / Sell-only, close trades that no longer fit
+      if(InpCloseOnDirChange && !DirectionAllows(dir))
+        {
+         g_trade.PositionClose(t);
+         RemoveStateAt(si);
+         continue;
+        }
 
       // ----- close on trend reversal -----
       if(InpCloseOnReversal && chartT!=0 && chartT!=dir)
