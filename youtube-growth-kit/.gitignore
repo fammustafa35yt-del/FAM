@@ -1,0 +1,15 @@
+# إعدادات سرية (مفتاح الـ API) — لا تُرفع أبداً
+config.json
+*.local.json
+
+# مخرجات
+out/
+*.csv
+reports/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/

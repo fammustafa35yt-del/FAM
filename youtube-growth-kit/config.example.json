@@ -1,0 +1,8 @@
+{
+  "_help": "انسخ هذا الملف إلى config.json وضع مفتاحك. لا ترفع config.json إلى GitHub.",
+  "youtube_api_key": "ضع_مفتاح_YouTube_Data_API_v3_هنا",
+  "my_channel_handle": "@FAM-ROBLOX35",
+  "niche": "roblox",
+  "language": "ar",
+  "timezone_offset_hours": 3
+}
