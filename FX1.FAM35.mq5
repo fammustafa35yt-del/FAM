@@ -16,11 +16,12 @@
 //|   - Trailing stop-loss that follows the trade                     |
 //|   - Personal control: Scalp / Swing / Both                        |
 //|   - Personal control: Up / Down / Both                            |
+//|   - Trading hours / sessions: choose days + start/end time        |
 //|   - On-chart dashboard (status, trades, wins, losses, P/L)        |
 //+------------------------------------------------------------------+
 #property copyright "FX1.FAM35"
-#property version   "1.10"
-#property description "FX1.FAM35 - Gold Elliott-Wave EA: Scalp/Swing, 1:3 RR, staged TPs, trailing SL, trend-reversal exit, dashboard."
+#property version   "1.11"
+#property description "FX1.FAM35 - Gold Elliott-Wave EA: Scalp/Swing, 1:3 RR, staged TPs, trailing SL, trend-reversal exit, trading hours, dashboard."
 
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -56,6 +57,22 @@ input group             "=== Personal Control / تحكم شخصي ==="
 input ENUM_BOT_STYLE    InpStyle           = STYLE_BOTH; // Trade style: Scalp / Swing / Both
 input ENUM_BOT_DIRECTION InpDirection      = DIR_BOTH;   // Direction: Buy / Sell / Both
 input bool              InpCloseOnDirChange= true;       // Close open trades that violate Buy/Sell/Both
+
+input group             "=== Trading Hours / أوقات العمل ==="
+input bool              InpUseTradingHours  = false;     // Enable trading-hours filter / تفعيل فلتر أوقات العمل
+input int               InpHoursShift       = 0;         // Hour shift from broker/server time / إزاحة الساعة عن وقت الخادم
+input int               InpStartHour        = 0;         // Session start hour 0-23 / ساعة البداية
+input int               InpStartMinute      = 0;         // Session start minute 0-59 / دقيقة البداية
+input int               InpEndHour          = 23;        // Session end hour 0-23 / ساعة النهاية
+input int               InpEndMinute        = 59;        // Session end minute 0-59 / دقيقة النهاية
+input bool              InpCloseOutsideHours= false;     // Close open trades outside hours / إغلاق الصفقات خارج الأوقات
+input bool              InpTradeMon         = true;      // Trade Monday / الاثنين
+input bool              InpTradeTue         = true;      // Trade Tuesday / الثلاثاء
+input bool              InpTradeWed         = true;      // Trade Wednesday / الأربعاء
+input bool              InpTradeThu         = true;      // Trade Thursday / الخميس
+input bool              InpTradeFri         = true;      // Trade Friday / الجمعة
+input bool              InpTradeSat         = false;     // Trade Saturday / السبت
+input bool              InpTradeSun         = false;     // Trade Sunday / الأحد
 
 input group             "=== Money Management / إدارة رأس المال ==="
 input ENUM_MM_MODE      InpMMMode          = MM_RISK_PERCENT; // Lot mode
@@ -292,6 +309,7 @@ void OnTick()
    g_lastBarTime = bt;
 
    if(g_paused) return;
+   if(!IsWithinTradingHours()) return;     // respect personal working hours
    if(IsDailyLossLimitHit()) return;
 
    CheckForEntry();
@@ -609,6 +627,44 @@ bool IsDailyLossLimitHit()
   }
 
 //+------------------------------------------------------------------+
+//| Trading-hours / session filter                                   |
+//|  Returns true when the bot is allowed to work right now.         |
+//|  Uses broker/server time + optional manual hour shift.           |
+//|  Supports same-day and overnight (start>end) windows.            |
+//+------------------------------------------------------------------+
+bool IsWithinTradingHours()
+  {
+   if(!InpUseTradingHours) return(true);
+
+   long     shifted = (long)TimeCurrent() + (long)InpHoursShift*3600;
+   MqlDateTime dt;
+   TimeToStruct((datetime)shifted,dt);
+
+   // day-of-week filter (0=Sunday ... 6=Saturday)
+   bool dayOk=false;
+   switch(dt.day_of_week)
+     {
+      case 0: dayOk=InpTradeSun; break;
+      case 1: dayOk=InpTradeMon; break;
+      case 2: dayOk=InpTradeTue; break;
+      case 3: dayOk=InpTradeWed; break;
+      case 4: dayOk=InpTradeThu; break;
+      case 5: dayOk=InpTradeFri; break;
+      case 6: dayOk=InpTradeSat; break;
+     }
+   if(!dayOk) return(false);
+
+   int nowMin   = dt.hour*60 + dt.min;
+   int startMin = InpStartHour*60 + InpStartMinute;
+   int endMin   = InpEndHour*60   + InpEndMinute;
+
+   if(startMin==endMin) return(true);               // full 24h window
+   if(startMin <  endMin)
+      return(nowMin>=startMin && nowMin<endMin);     // same-day window
+   return(nowMin>=startMin || nowMin<endMin);        // overnight window (e.g. 22:00 -> 06:00)
+  }
+
+//+------------------------------------------------------------------+
 //| Position state tracking                                          |
 //+------------------------------------------------------------------+
 int FindState(ulong ticket)
@@ -697,6 +753,14 @@ void ManageOpenPositions()
       // ----- enforce personal direction control -----
       // if the user switched to Buy-only / Sell-only, close trades that no longer fit
       if(InpCloseOnDirChange && !DirectionAllows(dir))
+        {
+         g_trade.PositionClose(t);
+         RemoveStateAt(si);
+         continue;
+        }
+
+      // ----- close trades that run outside the working hours -----
+      if(InpCloseOutsideHours && !IsWithinTradingHours())
         {
          g_trade.PositionClose(t);
          RemoveStateAt(si);
@@ -888,14 +952,14 @@ void Button(string name,int x,int y,int w,int h,string text,color bg,color clr)
 void CreatePanel()
   {
    int x=InpPanelX, y=InpPanelY;
-   int rows=15;
+   int rows=16;
    int h = rows*ROW_H + 14;
    RectLabel(g_panelPrefix+"bg",x-6,y-6,PANEL_W,h,InpPanelBg,clrSlateGray);
    // title bar
    RectLabel(g_panelPrefix+"title",x-6,y-6,PANEL_W,ROW_H+6,C'10,40,80',clrSlateGray);
 
    // control buttons (bottom, just under the stats rows)
-   int by = y + 13*ROW_H + 8;
+   int by = y + 14*ROW_H + 8;
    Button(g_panelPrefix+"btnStyle",x,    by,74,18,"Style",  C'40,60,90',clrWhite);
    Button(g_panelPrefix+"btnDir",  x+78, by,74,18,"Dir",    C'40,60,90',clrWhite);
    Button(g_panelPrefix+"btnPause",x+156,by,72,18,"Pause",  C'90,40,40',clrWhite);
@@ -920,6 +984,11 @@ string DirText()
    }
   }
 string TrendText(int t){ return(t>0?"UP":(t<0?"DOWN":"RANGE")); }
+string SessionText()
+  {
+   if(!InpUseTradingHours) return("24/7");
+   return(IsWithinTradingHours()? "OPEN" : "CLOSED");
+  }
 
 void UpdatePanel()
   {
@@ -939,6 +1008,12 @@ void UpdatePanel()
    int ct=ChartTrend(); int ht=HTFTrend();
    color tClr = ct>0?clrLime:(ct<0?clrTomato:clrSilver);
    TextLabel(g_panelPrefix+"r_trend",x,y+r*ROW_H,"Trend    : "+TrendText(ct)+"  (HTF "+TrendText(ht)+")",tClr,fs); r++;
+
+   color seClr = (!InpUseTradingHours)?clrAqua:(IsWithinTradingHours()?clrLime:clrTomato);
+   string seTxt = (!InpUseTradingHours)? "Session  : 24/7"
+                  : StringFormat("Session  : %s  %02d:%02d-%02d:%02d",SessionText(),
+                                 InpStartHour,InpStartMinute,InpEndHour,InpEndMinute);
+   TextLabel(g_panelPrefix+"r_session",x,y+r*ROW_H,seTxt,seClr,fs); r++;
 
    TextLabel(g_panelPrefix+"r_open",x,y+r*ROW_H,StringFormat("Open Pos : %d / %d",g_stats.openCount,InpMaxPositions),val,fs); r++;
    TextLabel(g_panelPrefix+"r_trades",x,y+r*ROW_H,StringFormat("Trades   : %d",g_stats.closedTrades),val,fs); r++;
