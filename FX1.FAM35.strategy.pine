@@ -1,0 +1,318 @@
+//@version=6
+// ===================================================================
+//  FX1.FAM35 — Gold (XAU) Elliott-Wave STRATEGY for TradingView
+//  Pine Script v6  —  Backtest version (Strategy Tester)
+//
+//  This is the backtestable strategy() port of the FX1.FAM35 indicator.
+//  Add it to a gold chart (e.g. OANDA:XAUUSD) and open the
+//  "Strategy Tester" tab to get a full backtest on real TradingView
+//  data: net profit, win rate, profit factor, max drawdown, equity
+//  curve and the full list of trades.
+//
+//  Trade management (mirrors the MT5 EA):
+//   - Entries on multi-confluence (EMA trend + wave structure + ADX + RSI
+//     + fresh pullback pivot), evaluated once per closed bar
+//   - SL behind the pullback pivot + ATR buffer
+//   - TP1 = 1R : close 1/3, move SL to break-even
+//   - TP2 = 2R : close 1/3, move SL to +1R
+//   - TP3 = 3R : close the rest (ATR trailing active after TP1)
+//   - Optional close on trend reversal
+//   - Risk-% position sizing (default 1% of equity per trade)
+// ===================================================================
+strategy("FX1.FAM35 — Gold Wave Strategy", shorttitle="FX1.FAM35 BT",
+     overlay=true,
+     initial_capital=10000,
+     currency=currency.USD,
+     default_qty_type=strategy.fixed,
+     commission_type=strategy.commission.cash_per_order,
+     commission_value=0.0,
+     slippage=0,
+     calc_on_every_tick=false,
+     process_orders_on_close=false,
+     max_lines_count=500, max_labels_count=500)
+
+// ===================== Personal Control =====================
+styleMode = input.string("Both", "Style / الستايل", options=["Scalp","Swing","Both"], group="Personal Control / تحكم شخصي")
+dirMode   = input.string("Both", "Direction / الاتجاه", options=["Buy","Sell","Both"], group="Personal Control / تحكم شخصي")
+
+// ===================== Backtest window =====================
+useRange  = input.bool(false, "Limit backtest date range", group="Backtest / الباك تيست")
+fromDate  = input.time(timestamp("1 Jan 2020 00:00 +0000"), "From", group="Backtest / الباك تيست")
+toDate    = input.time(timestamp("1 Jan 2030 00:00 +0000"), "To", group="Backtest / الباك تيست")
+inRange   = not useRange or (time >= fromDate and time <= toDate)
+
+// ===================== Money management =====================
+riskPct   = input.float(1.0, "Risk % of equity per trade", step=0.25, minval=0.05, maxval=10, group="Money Management / إدارة رأس المال")
+maxQty    = input.float(10000, "Max quantity (units of XAU... cap)", minval=0.0, group="Money Management / إدارة رأس المال")
+
+// ===================== Targets (1:3) =====================
+rr        = input.float(3.0, "Reward:Risk — final TP (xR)", step=0.1, minval=0.5, group="Targets / الأهداف")
+tp1R      = input.float(1.0, "TP1 (xR)", step=0.1, minval=0.1, group="Targets / الأهداف")
+tp2R      = input.float(2.0, "TP2 (xR)", step=0.1, minval=0.1, group="Targets / الأهداف")
+usePartials = input.bool(true, "Use partial take-profits (1/3 each)", group="Targets / الأهداف")
+
+// ===================== Stops / trailing =====================
+moveBE      = input.bool(true, "Move SL to break-even after TP1", group="Stops / الوقف")
+useTrail    = input.bool(true, "ATR trailing stop", group="Stops / الوقف")
+trailStartR = input.float(1.0, "Trailing starts after (xR)", step=0.5, group="Stops / الوقف")
+trailATRMul = input.float(2.0, "Trailing distance (xATR)", step=0.25, group="Stops / الوقف")
+closeOnRev  = input.bool(true, "Close position on trend reversal", group="Stops / الوقف")
+
+// ===================== Strategy / Wave Engine =====================
+fastLen  = input.int(21,  "Fast EMA", minval=1, group="Engine / المحرك")
+slowLen  = input.int(50,  "Slow EMA", minval=1, group="Engine / المحرك")
+trendLen = input.int(200, "Trend EMA", minval=1, group="Engine / المحرك")
+adxLen   = input.int(14,  "ADX / DMI length", minval=1, group="Engine / المحرك")
+adxMinSc = input.float(18.0, "ADX min (Scalp)", group="Engine / المحرك")
+adxMinSw = input.float(22.0, "ADX min (Swing)", group="Engine / المحرك")
+rsiLen   = input.int(14,  "RSI length", minval=1, group="Engine / المحرك")
+atrLen   = input.int(14,  "ATR length", minval=1, group="Engine / المحرك")
+pvLeft   = input.int(3,   "Pivot left", minval=1, group="Engine / المحرك")
+pvRight  = input.int(3,   "Pivot right", minval=1, group="Engine / المحرك")
+maxPB    = input.int(25,  "Max bars since pullback pivot", minval=1, group="Engine / المحرك")
+slBuf    = input.float(0.5, "SL buffer (xATR)", step=0.1, group="Engine / المحرك")
+maxRiskATR = input.float(6.0, "Reject signal if R > xATR", step=0.5, group="Engine / المحرك")
+swingTF  = input.timeframe("240", "Higher TF for swing bias", group="Engine / المحرك")
+
+// ===================== Visuals =====================
+showEMA   = input.bool(true, "Show EMAs", group="Visuals / العرض")
+showPanel = input.bool(true, "Show dashboard", group="Visuals / العرض")
+tblPos    = input.string("Top Right", "Panel position", options=["Top Right","Top Left","Bottom Right","Bottom Left"], group="Visuals / العرض")
+
+// ===================== Indicators =====================
+emaFast  = ta.ema(close, fastLen)
+emaSlow  = ta.ema(close, slowLen)
+emaTrend = ta.ema(close, trendLen)
+atr      = ta.atr(atrLen)
+rsi      = ta.rsi(close, rsiLen)
+[diP, diM, adx] = ta.dmi(adxLen, adxLen)
+
+// Higher timeframe bias (non-repainting)
+htfEma   = request.security(syminfo.tickerid, swingTF, ta.ema(close, slowLen), lookahead=barmerge.lookahead_off)
+htfClose = request.security(syminfo.tickerid, swingTF, close, lookahead=barmerge.lookahead_off)
+htfUp    = not na(htfEma) and htfClose > htfEma
+htfDn    = not na(htfEma) and htfClose < htfEma
+
+// ===================== Trend detection =====================
+trendUp  = emaFast > emaSlow and close > emaSlow and close >= emaTrend
+trendDn  = emaFast < emaSlow and close < emaSlow and close <= emaTrend
+trendDir = trendUp ? 1 : trendDn ? -1 : 0
+
+// ===================== Wave / pivot structure =====================
+ph = ta.pivothigh(high, pvLeft, pvRight)
+pl = ta.pivotlow(low,  pvLeft, pvRight)
+
+var float lastPH = na
+var float prevPH = na
+var float lastPL = na
+var float prevPL = na
+var int   barsPH = na
+var int   barsPL = na
+
+if not na(ph)
+    prevPH := lastPH
+    lastPH := ph
+    barsPH := pvRight
+else
+    barsPH := na(barsPH) ? na : barsPH + 1
+
+if not na(pl)
+    prevPL := lastPL
+    lastPL := pl
+    barsPL := pvRight
+else
+    barsPL := na(barsPL) ? na : barsPL + 1
+
+structOK = not na(lastPH) and not na(prevPH) and not na(lastPL) and not na(prevPL)
+waveUp   = structOK and lastPH > prevPH and lastPL > prevPL
+waveDn   = structOK and lastPH < prevPH and lastPL < prevPL
+
+// ===================== Permissions =====================
+allowSwing = styleMode == "Swing" or styleMode == "Both"
+allowScalp = styleMode == "Scalp" or styleMode == "Both"
+allowBuy   = dirMode  == "Buy"  or dirMode  == "Both"
+allowSell  = dirMode  == "Sell" or dirMode  == "Both"
+freshPL    = not na(barsPL) and barsPL <= maxPB
+freshPH    = not na(barsPH) and barsPH <= maxPB
+
+// ===================== Entry conditions =====================
+buyBase = trendUp and not waveDn and rsi > 50 and rsi < 78 and not na(lastPL) and close > lastPL and freshPL
+buyScalpOK = allowScalp and buyBase and adx >= adxMinSc
+buySwingOK = allowSwing and buyBase and adx >= adxMinSw and htfUp
+buyCond = allowBuy and (buyScalpOK or buySwingOK)
+
+sellBase = trendDn and not waveUp and rsi < 50 and rsi > 22 and not na(lastPH) and close < lastPH and freshPH
+sellScalpOK = allowScalp and sellBase and adx >= adxMinSc
+sellSwingOK = allowSwing and sellBase and adx >= adxMinSw and htfDn
+sellCond = allowSell and (sellScalpOK or sellSwingOK)
+
+// ===================== Risk / SL / R =====================
+slBuyPrice  = not na(lastPL) ? lastPL - atr * slBuf : na
+rBuy        = not na(slBuyPrice) ? close - slBuyPrice : na
+buyRiskOK   = not na(rBuy) and rBuy > 0 and rBuy <= atr * maxRiskATR
+
+slSellPrice = not na(lastPH) ? lastPH + atr * slBuf : na
+rSell       = not na(slSellPrice) ? slSellPrice - close : na
+sellRiskOK  = not na(rSell) and rSell > 0 and rSell <= atr * maxRiskATR
+
+// ===================== Position state =====================
+var float eEntry = na      // entry price
+var float eR     = na      // 1R distance
+var float eSL    = na      // current stop level
+var float eTP1   = na
+var float eTP2   = na
+var float eTP3   = na
+var bool  tp1Done = false
+var bool  tp2Done = false
+
+flat = strategy.position_size == 0
+lng  = strategy.position_size > 0
+srt  = strategy.position_size < 0
+
+// reset state when flat
+if flat and not na(eEntry) and strategy.opentrades == 0
+    eEntry := na
+    eR := na
+    eSL := na
+    eTP1 := na
+    eTP2 := na
+    eTP3 := na
+    tp1Done := false
+    tp2Done := false
+
+// ===================== Manage open position =====================
+if lng
+    // stage detection (bar high/low based, mirrors the EA)
+    if not tp1Done and high >= eTP1
+        tp1Done := true
+        if moveBE
+            eSL := math.max(eSL, eEntry)
+    if tp1Done and not tp2Done and high >= eTP2
+        tp2Done := true
+        eSL := math.max(eSL, eEntry + eR)
+    // ATR trailing after price advanced trailStartR
+    if useTrail and (close - eEntry) >= eR * trailStartR
+        eSL := math.max(eSL, close - atr * trailATRMul)
+    // close on trend reversal
+    if closeOnRev and trendDn
+        strategy.close_all(comment="Reversal")
+
+if srt
+    if not tp1Done and low <= eTP1
+        tp1Done := true
+        if moveBE
+            eSL := math.min(eSL, eEntry)
+    if tp1Done and not tp2Done and low <= eTP2
+        tp2Done := true
+        eSL := math.min(eSL, eEntry - eR)
+    if useTrail and (eEntry - close) >= eR * trailStartR
+        eSL := math.min(eSL, close + atr * trailATRMul)
+    if closeOnRev and trendUp
+        strategy.close_all(comment="Reversal")
+
+// ===================== Entries =====================
+buyFire  = inRange and flat and buyCond  and buyRiskOK
+sellFire = inRange and flat and sellCond and sellRiskOK
+
+calcQty(rDist) =>
+    riskMoney = strategy.equity * riskPct / 100.0
+    q = rDist > 0 ? riskMoney / rDist : 0.0
+    math.min(q, maxQty)
+
+if buyFire
+    eEntry := close
+    eR     := rBuy
+    eSL    := slBuyPrice
+    eTP1   := close + rBuy * tp1R
+    eTP2   := close + rBuy * tp2R
+    eTP3   := close + rBuy * rr
+    tp1Done := false
+    tp2Done := false
+    q = calcQty(rBuy)
+    if q > 0
+        strategy.entry("L", strategy.long, qty=q)
+
+if sellFire
+    eEntry := close
+    eR     := rSell
+    eSL    := slSellPrice
+    eTP1   := close - rSell * tp1R
+    eTP2   := close - rSell * tp2R
+    eTP3   := close - rSell * rr
+    tp1Done := false
+    tp2Done := false
+    q = calcQty(rSell)
+    if q > 0
+        strategy.entry("S", strategy.short, qty=q)
+
+// ===================== Exits =====================
+// Three staged exits: 1/3 at TP1, 1/3 at TP2, rest at TP3.
+// The stop of every leg follows eSL (BE after TP1, +1R after TP2, ATR trail).
+if lng or buyFire
+    if usePartials
+        strategy.exit("TP1", from_entry="L", qty_percent=33, limit=eTP1, stop=eSL)
+        strategy.exit("TP2", from_entry="L", qty_percent=50, limit=eTP2, stop=eSL)
+        strategy.exit("TP3", from_entry="L", qty_percent=100, limit=eTP3, stop=eSL)
+    else
+        strategy.exit("TP",  from_entry="L", qty_percent=100, limit=eTP3, stop=eSL)
+
+if srt or sellFire
+    if usePartials
+        strategy.exit("TP1", from_entry="S", qty_percent=33, limit=eTP1, stop=eSL)
+        strategy.exit("TP2", from_entry="S", qty_percent=50, limit=eTP2, stop=eSL)
+        strategy.exit("TP3", from_entry="S", qty_percent=100, limit=eTP3, stop=eSL)
+    else
+        strategy.exit("TP",  from_entry="S", qty_percent=100, limit=eTP3, stop=eSL)
+
+// ===================== Plots =====================
+plot(showEMA ? emaFast  : na, "EMA Fast",  color=color.new(color.aqua,0))
+plot(showEMA ? emaSlow  : na, "EMA Slow",  color=color.new(color.orange,0))
+plot(showEMA ? emaTrend : na, "EMA Trend", color=color.new(color.gray,0))
+plot(not flat ? eSL  : na, "Stop",  color=color.new(color.red,0),   style=plot.style_linebr)
+plot(not flat ? eTP3 : na, "TP3",   color=color.new(color.green,0), style=plot.style_linebr)
+
+plotshape(buyFire,  title="BUY",  style=shape.labelup,   location=location.belowbar, color=color.new(color.lime,0), textcolor=color.black, text="BUY",  size=size.small)
+plotshape(sellFire, title="SELL", style=shape.labeldown, location=location.abovebar, color=color.new(color.red,0),  textcolor=color.white, text="SELL", size=size.small)
+
+// ===================== Dashboard =====================
+posMap(s) =>
+    switch s
+        "Top Right"    => position.top_right
+        "Top Left"     => position.top_left
+        "Bottom Right" => position.bottom_right
+        "Bottom Left"  => position.bottom_left
+        => position.top_right
+
+fmt(x) => na(x) ? "-" : str.tostring(x, format.mintick)
+
+var table dash = table.new(posMap(tblPos), 2, 10, frame_color=color.new(color.gray,0), frame_width=1, border_color=color.new(color.gray,40), border_width=1)
+
+if showPanel and barstate.islast
+    trendTxt = trendDir == 1 ? "UP" : trendDir == -1 ? "DOWN" : "RANGE"
+    trendCol = trendDir == 1 ? color.lime : trendDir == -1 ? color.red : color.silver
+    closedN  = strategy.closedtrades
+    winsN    = strategy.wintrades
+    wr       = closedN > 0 ? winsN / closedN * 100.0 : 0.0
+    bg       = color.new(#12161f, 0)
+    hcol     = color.new(#0a2850, 0)
+
+    table.cell(dash, 0, 0, "FX1.FAM35 BT", text_color=color.yellow, bgcolor=hcol)
+    table.cell(dash, 1, 0, "GOLD",         text_color=color.yellow, bgcolor=hcol)
+    table.cell(dash, 0, 1, "Symbol/TF",    text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 1, syminfo.ticker + " " + timeframe.period, text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 2, "Style / Dir",  text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 2, styleMode + " / " + dirMode, text_color=color.aqua, bgcolor=bg)
+    table.cell(dash, 0, 3, "Trend",        text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 3, trendTxt,       text_color=trendCol,     bgcolor=bg)
+    table.cell(dash, 0, 4, "Position",     text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 4, lng ? "LONG" : srt ? "SHORT" : "FLAT", text_color=lng ? color.lime : srt ? color.red : color.silver, bgcolor=bg)
+    table.cell(dash, 0, 5, "Entry / SL",   text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 5, fmt(eEntry) + " / " + fmt(eSL), text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 6, "TP 1/2/3",     text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 6, fmt(eTP1) + " / " + fmt(eTP2) + " / " + fmt(eTP3), text_color=color.green, bgcolor=bg)
+    table.cell(dash, 0, 7, "Trades",       text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 7, str.tostring(closedN), text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 8, "Win rate",     text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 8, str.tostring(wr, "#.#") + "%", text_color=color.lime, bgcolor=bg)
+    table.cell(dash, 0, 9, "Net profit",   text_color=color.silver, bgcolor=bg)
+    table.cell(dash, 1, 9, str.tostring(strategy.netprofit, "#.##"), text_color=strategy.netprofit >= 0 ? color.lime : color.red, bgcolor=bg)
