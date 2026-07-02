@@ -8,6 +8,9 @@
 |---|---|---|---|
 | **Expert Advisor** | MetaTrader 5 | [`FX1.FAM35.mq5`](FX1.FAM35.mq5) | ✅ نعم (تنفيذ كامل + إدارة) |
 | **Indicator** | TradingView (Pine v6) | [`FX1.FAM35.pine`](FX1.FAM35.pine) | ⚠️ لا — إشارات + تنبيهات فقط |
+| **Strategy (باك تيست)** | TradingView Strategy Tester | [`FX1.FAM35.strategy.pine`](FX1.FAM35.strategy.pine) | 🧪 باك تيست كامل على بيانات حقيقية |
+| **Backtest Engine** | Python (CSV) | [`backtest/fam35_backtest.py`](backtest/fam35_backtest.py) | 🧪 باك تيست محلي على بياناتك — [الدليل](backtest/README.md) |
+| **Trade Advisor** | Python + Telegram | [`advisor/fam35_advisor.py`](advisor/fam35_advisor.py) | 📨 يرسل لك خطة الصفقة (قرار/وقف/أهداف/لوت) — [الدليل](advisor/README.md) |
 
 > ملاحظة: مؤشر TradingView يحلّل ويعطي إشارات وتنبيهات (Alerts) فقط ولا يفتح صفقات
 > بنفسه. للتنفيذ الآلي اربط التنبيهات بوسيط عبر Webhook، أو استخدم نسخة MT5 للتنفيذ
