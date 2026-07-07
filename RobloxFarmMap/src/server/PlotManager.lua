@@ -8,6 +8,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local DataManager = require(script.Parent:WaitForChild("DataManager"))
 local FarmingSystem = require(script.Parent:WaitForChild("FarmingSystem"))
 local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
 
 local PlotManager = {}
 
@@ -33,6 +34,71 @@ local function refreshSign(plot)
 	plot.Prompt.Enabled = plot.OwnerUserId == nil
 end
 
+-- لافتة/عمود ترقية البيت أمام الأرض
+local function updateUpgradePrompt(plot, level: number)
+	local nextLevel = GameConfig.HouseLevels[level + 1]
+	if nextLevel then
+		plot.UpgradePrompt.Enabled = true
+		plot.UpgradePrompt.ActionText = "تطوير البيت"
+		plot.UpgradePrompt.ObjectText = nextLevel.Name .. " — 💰 " .. nextLevel.UpgradePrice
+	else
+		plot.UpgradePrompt.Enabled = false
+	end
+end
+
+local function setupUpgradePost(player: Player, plot)
+	if plot.UpgradePost then
+		return
+	end
+	local base: BasePart = plot.Base
+	local post = Instance.new("Part")
+	post.Name = "UpgradePost"
+	post.Anchored = true
+	post.Size = Vector3.new(1.5, 4, 1.5)
+	post.Position = base.Position + Vector3.new(base.Size.X / 2 - 2, 2.5, base.Size.Z / 2 + 2)
+	post.Material = Enum.Material.Wood
+	post.Color = Color3.fromRGB(120, 85, 55)
+	post.Parent = base.Parent
+	MapBuilder.makeSign(post, post, "⬆️ لوحة تطوير البيت")
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.HoldDuration = 1
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = post
+
+	plot.UpgradePost = post
+	plot.UpgradePrompt = prompt
+
+	prompt.Triggered:Connect(function(byPlayer)
+		if byPlayer.UserId ~= plot.OwnerUserId then
+			DataManager.notify(byPlayer, "هذا ليس بيتك!", true)
+			return
+		end
+		local data = DataManager.getData(byPlayer)
+		if not data then
+			return
+		end
+		local nextLevel = data.HouseLevel + 1
+		local nextInfo = GameConfig.HouseLevels[nextLevel]
+		if not nextInfo then
+			return
+		end
+		if not DataManager.trySpend(byPlayer, nextInfo.UpgradePrice) then
+			DataManager.notify(byPlayer, "لا تملك مالًا كافيًا للترقية (السعر: " .. nextInfo.UpgradePrice .. ") 💸", true)
+			return
+		end
+		data.HouseLevel = nextLevel
+		DataManager.pushUpdate(byPlayer)
+		if plot.HouseModel then
+			plot.HouseModel:Destroy()
+		end
+		plot.HouseModel = MapBuilder.buildHouse(plot.Base, byPlayer.DisplayName, nextLevel)
+		updateUpgradePrompt(plot, nextLevel)
+		DataManager.notify(byPlayer, "مبروك! تطور بيتك إلى " .. nextInfo.Name .. " — دخل الإيجار زاد! 🎉")
+	end)
+end
+
 local function giveOwnership(player: Player, plot, announce: boolean)
 	plot.OwnerUserId = player.UserId
 	refreshSign(plot)
@@ -40,8 +106,14 @@ local function giveOwnership(player: Player, plot, announce: boolean)
 	if plot.Kind == "Farm" then
 		plot.Base.Color = Color3.fromRGB(150, 111, 70)
 		FarmingSystem.setupFarm(plot.Base, player.UserId)
+		-- تسجيل المزرعة لنظام الحيوانات (يعيد إحياء الحيوانات المحفوظة)
+		AnimalSystem.registerFarm(player, plot.Base)
 	else
-		MapBuilder.buildHouse(plot.Base, player.DisplayName)
+		local data = DataManager.getData(player)
+		local level = (data and data.HouseLevel) or 1
+		plot.HouseModel = MapBuilder.buildHouse(plot.Base, player.DisplayName, level)
+		setupUpgradePost(player, plot)
+		updateUpgradePrompt(plot, level)
 	end
 
 	if announce then
@@ -154,6 +226,27 @@ function PlotManager.init(plots: { any })
 	for _, player in ipairs(Players:GetPlayers()) do
 		onPlayer(player)
 	end
+
+	-- دخل الإيجار الدوري لأصحاب البيوت (يزيد مع مستوى البيت)
+	task.spawn(function()
+		while true do
+			task.wait(GameConfig.HouseIncomeInterval)
+			for _, plot in pairs(plotStates) do
+				if plot.Kind == "House" and plot.OwnerUserId then
+					local owner = Players:GetPlayerByUserId(plot.OwnerUserId)
+					if owner then
+						local data = DataManager.getData(owner)
+						local level = (data and data.HouseLevel) or 1
+						local levelInfo = GameConfig.HouseLevels[level]
+						if levelInfo then
+							DataManager.addMoney(owner, levelInfo.Income)
+							DataManager.notify(owner, "🏠 دخل الإيجار: +" .. levelInfo.Income .. " 💰")
+						end
+					end
+				end
+			end
+		end
+	end)
 end
 
 return PlotManager

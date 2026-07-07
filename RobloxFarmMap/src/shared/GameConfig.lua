@@ -113,4 +113,101 @@ GameConfig.Jobs = {
 -- أقصى مبلغ يمكن إرساله في صفقة تبادل واحدة
 GameConfig.MaxTradeMoney = 100000
 
+-- ================= منتجات الحيوانات =================
+GameConfig.AnimalProducts = {
+	Egg = { DisplayName = "بيض 🥚", SellPrice = 12 },
+	Milk = { DisplayName = "حليب 🥛", SellPrice = 28 },
+	Wool = { DisplayName = "صوف 🧶", SellPrice = 48 },
+}
+
+-- ================= حيوانات المزرعة =================
+-- Product     : المنتج الذي ينتجه الحيوان
+-- ProduceTime : ثواني إنتاج المنتج الواحد
+GameConfig.Animals = {
+	Chicken = {
+		DisplayName = "دجاجة 🐔",
+		Price = 120,
+		Product = "Egg",
+		ProduceTime = 40,
+		BodySize = Vector3.new(1.6, 1.4, 2),
+		BodyColor = Color3.fromRGB(240, 240, 230),
+		HeadColor = Color3.fromRGB(200, 60, 50),
+	},
+	Cow = {
+		DisplayName = "بقرة 🐄",
+		Price = 350,
+		Product = "Milk",
+		ProduceTime = 90,
+		BodySize = Vector3.new(3, 2.4, 4.5),
+		BodyColor = Color3.fromRGB(245, 245, 245),
+		HeadColor = Color3.fromRGB(50, 50, 50),
+	},
+	Sheep = {
+		DisplayName = "خروف 🐑",
+		Price = 520,
+		Product = "Wool",
+		ProduceTime = 140,
+		BodySize = Vector3.new(2.4, 2, 3.4),
+		BodyColor = Color3.fromRGB(230, 222, 200),
+		HeadColor = Color3.fromRGB(80, 65, 55),
+	},
+}
+-- أقصى عدد حيوانات لكل مزرعة (4 مواقع حول الأرض)
+GameConfig.MaxAnimalsPerFarm = 4
+
+-- ================= مستويات البيوت =================
+-- UpgradePrice : تكلفة الترقية لهذا المستوى
+-- Income       : دخل الإيجار الدوري
+GameConfig.HouseLevels = {
+	[1] = { Name = "بيت صغير 🏠", UpgradePrice = 0, Income = 15 },
+	[2] = { Name = "بيت عائلي 🏡", UpgradePrice = 900, Income = 45 },
+	[3] = { Name = "قصر 🏰", UpgradePrice = 2200, Income = 120 },
+}
+-- كل كم ثانية يُدفع دخل الإيجار
+GameConfig.HouseIncomeInterval = 120
+
+-- ================= المواسم =================
+-- GrowthMultiplier : سرعة نمو المحاصيل (أكبر = أسرع)
+-- BonusCrop        : محصول الموسم — يُباع بسعر أعلى في المتجر
+GameConfig.Seasons = {
+	{
+		Id = "Spring",
+		DisplayName = "الربيع 🌸",
+		GrowthMultiplier = 1.3,
+		BonusCrop = "Carrot",
+		GroundColor = Color3.fromRGB(96, 170, 84),
+	},
+	{
+		Id = "Summer",
+		DisplayName = "الصيف ☀️",
+		GrowthMultiplier = 1.0,
+		BonusCrop = "Corn",
+		GroundColor = Color3.fromRGB(120, 165, 70),
+	},
+	{
+		Id = "Autumn",
+		DisplayName = "الخريف 🍂",
+		GrowthMultiplier = 0.85,
+		BonusCrop = "Pumpkin",
+		GroundColor = Color3.fromRGB(150, 135, 70),
+	},
+	{
+		Id = "Winter",
+		DisplayName = "الشتاء ❄️",
+		GrowthMultiplier = 0.55,
+		BonusCrop = "Wheat",
+		GroundColor = Color3.fromRGB(205, 210, 218),
+	},
+}
+-- مدة الموسم بالثواني
+GameConfig.SeasonLength = 300
+-- مضاعف سعر بيع محصول الموسم
+GameConfig.SeasonBonusMultiplier = 1.5
+
+-- ================= السوق المركزي =================
+GameConfig.Market = {
+	MaxListingsPerPlayer = 4, -- أقصى عدد عروض لكل لاعب
+	MaxPrice = 1000000,
+}
+
 return GameConfig

@@ -19,7 +19,7 @@ local pendingRequests: { [Player]: Player } = {}
 -- trade = { players = {p1, p2}, offers = { [player] = { items = { [category] = { [itemName] = count } }, money = 0, ready = false } } }
 local activeTrades: { [Player]: any } = {}
 
-local VALID_CATEGORIES = { Seeds = true, Crops = true, Tools = true }
+local VALID_CATEGORIES = { Seeds = true, Crops = true, Tools = true, Products = true }
 
 local function partnerOf(trade, player: Player): Player
 	return trade.players[1] == player and trade.players[2] or trade.players[1]

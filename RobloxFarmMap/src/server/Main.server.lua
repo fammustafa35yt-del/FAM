@@ -19,20 +19,26 @@ remotes.Parent = ReplicatedStorage
 
 local DataManager = require(script.Parent:WaitForChild("DataManager"))
 local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
 local FarmingSystem = require(script.Parent:WaitForChild("FarmingSystem"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
 local PlotManager = require(script.Parent:WaitForChild("PlotManager"))
 local ShopSystem = require(script.Parent:WaitForChild("ShopSystem"))
 local JobSystem = require(script.Parent:WaitForChild("JobSystem"))
 local TradeSystem = require(script.Parent:WaitForChild("TradeSystem"))
+local MarketSystem = require(script.Parent:WaitForChild("MarketSystem"))
 
 DataManager.init(remotes)
 
 local map = MapBuilder.build()
 
+SeasonSystem.init(remotes)
 FarmingSystem.init(remotes)
+AnimalSystem.init()
 PlotManager.init(map.Plots)
 ShopSystem.init(remotes, map.ShopPrompt)
 JobSystem.init(map.JobCenter)
 TradeSystem.init(remotes)
+MarketSystem.init(remotes, map.MarketPrompt)
 
 print("[FAM Farm] الماب جاهز! ✅")

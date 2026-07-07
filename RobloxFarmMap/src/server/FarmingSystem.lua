@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
 
 local FarmingSystem = {}
 
@@ -110,7 +111,8 @@ local function plantSeed(player: Player, soil: BasePart)
 		return
 	end
 
-	local growTime = GameConfig.Crops[seedName].GrowTime
+	-- الموسم يؤثر على سرعة النمو (الربيع أسرع، الشتاء أبطأ)
+	local growTime = math.max(3, math.floor(GameConfig.Crops[seedName].GrowTime / SeasonSystem.getGrowthMultiplier()))
 	state.state = "Growing"
 	state.crop = seedName
 	state.totalTime = growTime

@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
 
 local ShopSystem = {}
 
@@ -58,19 +60,37 @@ function ShopSystem.init(remotes: Folder, shopPrompt: ProximityPrompt)
 			else
 				DataManager.notify(player, "لا تملك مالًا كافيًا 💸", true)
 			end
+		elseif category == "Animals" then
+			-- شراء حيوان: يتطلب امتلاك مزرعة، ويُوضع حولها تلقائيًا
+			AnimalSystem.buyAnimal(player, itemName)
 		end
 	end)
 
-	sellCrop.OnServerEvent:Connect(function(player, cropName, amount)
-		if typeof(cropName) ~= "string" then
-			return
-		end
-		local crop = GameConfig.Crops[cropName]
-		if not crop then
+	-- بيع المحاصيل ومنتجات الحيوانات (محصول الموسم يُباع بسعر أعلى!)
+	sellCrop.OnServerEvent:Connect(function(player, itemName, amount)
+		if typeof(itemName) ~= "string" then
 			return
 		end
 
-		local owned = DataManager.getItemCount(player, "Crops", cropName)
+		local category, info, unitPrice
+		local crop = GameConfig.Crops[itemName]
+		local product = GameConfig.AnimalProducts[itemName]
+		if crop then
+			category = "Crops"
+			info = crop
+			unitPrice = crop.SellPrice
+			if SeasonSystem.isBonusCrop(itemName) then
+				unitPrice = math.floor(unitPrice * GameConfig.SeasonBonusMultiplier)
+			end
+		elseif product then
+			category = "Products"
+			info = product
+			unitPrice = product.SellPrice
+		else
+			return
+		end
+
+		local owned = DataManager.getItemCount(player, category, itemName)
 		local toSell
 		if amount == "all" then
 			toSell = owned
@@ -79,14 +99,15 @@ function ShopSystem.init(remotes: Folder, shopPrompt: ProximityPrompt)
 		end
 		toSell = math.clamp(toSell, 0, owned)
 		if toSell <= 0 then
-			DataManager.notify(player, "لا تملك هذا المحصول للبيع", true)
+			DataManager.notify(player, "لا تملك هذا الغرض للبيع", true)
 			return
 		end
 
-		if DataManager.tryRemoveItem(player, "Crops", cropName, toSell) then
-			local total = toSell * crop.SellPrice
+		if DataManager.tryRemoveItem(player, category, itemName, toSell) then
+			local total = toSell * unitPrice
 			DataManager.addMoney(player, total)
-			DataManager.notify(player, "بعت " .. toSell .. "x " .. crop.DisplayName .. " مقابل 💰 " .. total)
+			local bonusText = (crop and SeasonSystem.isBonusCrop(itemName)) and " ⭐ (سعر الموسم!)" or ""
+			DataManager.notify(player, "بعت " .. toSell .. "x " .. info.DisplayName .. " مقابل 💰 " .. total .. bonusText)
 		end
 	end)
 end

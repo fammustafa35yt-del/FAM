@@ -26,13 +26,23 @@ local function defaultData()
 	return {
 		Money = GameConfig.StartingMoney,
 		Inventory = {
-			Seeds = {},  -- { Wheat = 3 }
-			Crops = {},  -- { Wheat = 5 }
-			Tools = {},  -- { WateringCan = 1 }
+			Seeds = {},    -- { Wheat = 3 }
+			Crops = {},    -- { Wheat = 5 }
+			Tools = {},    -- { WateringCan = 1 }
+			Products = {}, -- { Egg = 4 } منتجات الحيوانات
 		},
 		OwnedFarms = {},  -- { "Farm1" }
 		OwnedHouses = {}, -- { "House2" }
+		Animals = {},     -- { "Chicken", "Cow" }
+		HouseLevel = 1,   -- مستوى البيت الحالي
 	}
+end
+
+-- دوال تُستدعى قبل حفظ بيانات اللاعب (مثل إرجاع أغراض السوق المحجوزة)
+local beforeSaveHooks: { (Player) -> () } = {}
+
+function DataManager.onBeforeSave(hook: (Player) -> ())
+	table.insert(beforeSaveHooks, hook)
 end
 
 local function keyFor(player: Player): string
@@ -52,6 +62,8 @@ function DataManager.pushUpdate(player: Player)
 			Inventory = session.data.Inventory,
 			OwnedFarms = session.data.OwnedFarms,
 			OwnedHouses = session.data.OwnedHouses,
+			Animals = session.data.Animals,
+			HouseLevel = session.data.HouseLevel,
 			SelectedSeed = session.selectedSeed,
 		})
 	end
@@ -150,17 +162,29 @@ local function load(player: Player)
 			data.Inventory.Seeds = data.Inventory.Seeds or {}
 			data.Inventory.Crops = data.Inventory.Crops or {}
 			data.Inventory.Tools = data.Inventory.Tools or {}
+			data.Inventory.Products = data.Inventory.Products or {}
 			data.OwnedFarms = data.OwnedFarms or {}
 			data.OwnedHouses = data.OwnedHouses or {}
+			data.Animals = data.Animals or {}
+			data.HouseLevel = data.HouseLevel or 1
 		end
 	end
 	sessions[player] = { data = data, selectedSeed = nil }
 	DataManager.pushUpdate(player)
 end
 
-local function save(player: Player)
+local function save(player: Player, isFinal: boolean?)
 	local session = sessions[player]
-	if not session or not store then
+	if not session then
+		return
+	end
+	-- عند المغادرة فقط: إرجاع أي أغراض محجوزة (عروض السوق المركزي مثلًا)
+	if isFinal then
+		for _, hook in ipairs(beforeSaveHooks) do
+			pcall(hook, player)
+		end
+	end
+	if not store then
 		return
 	end
 	pcall(function()
@@ -185,7 +209,7 @@ function DataManager.init(remotesFolder: Folder)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		save(player)
+		save(player, true)
 		sessions[player] = nil
 	end)
 
@@ -195,7 +219,7 @@ function DataManager.init(remotesFolder: Folder)
 			task.wait(2)
 		end
 		for _, player in ipairs(Players:GetPlayers()) do
-			save(player)
+			save(player, true)
 		end
 	end)
 

@@ -182,30 +182,112 @@ local function buildPlots(root: Folder)
 	return plots
 end
 
--- بناء بيت بسيط فوق أرض البيت عند شرائها
-function MapBuilder.buildHouse(base: BasePart, ownerName: string)
+-- أشكال البيوت حسب المستوى
+local HOUSE_STYLES = {
+	[1] = { Width = 20, Floors = 1, WallColor = Color3.fromRGB(235, 225, 200), RoofColor = Color3.fromRGB(155, 60, 50), RoofMaterial = Enum.Material.Slate },
+	[2] = { Width = 24, Floors = 2, WallColor = Color3.fromRGB(225, 210, 180), RoofColor = Color3.fromRGB(60, 95, 160), RoofMaterial = Enum.Material.Slate },
+	[3] = { Width = 28, Floors = 2, WallColor = Color3.fromRGB(245, 240, 225), RoofColor = Color3.fromRGB(212, 175, 55), RoofMaterial = Enum.Material.Metal },
+}
+
+-- بناء بيت فوق أرض البيت (يكبر ويتحسن مع كل مستوى)
+function MapBuilder.buildHouse(base: BasePart, ownerName: string, level: number?)
+	local houseLevel = math.clamp(level or 1, 1, #HOUSE_STYLES)
+	local style = HOUSE_STYLES[houseLevel]
+	local levelInfo = GameConfig.HouseLevels[houseLevel]
+
 	local house = Instance.new("Model")
 	house.Name = "HouseBuilding"
 
 	local center = base.Position + Vector3.new(0, 0.55, 0)
-	local wallColor = Color3.fromRGB(235, 225, 200)
+	local w = style.Width
+	local half = w / 2
+	local floorHeight = 9
+	local wallColor = style.WallColor
 
 	-- أرضية البيت
-	makePart({ Size = Vector3.new(20, 1, 20), Position = center + Vector3.new(0, 0.5, 0), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(170, 130, 90), Parent = house })
-	-- جدران (فتحة باب في الجدار الأمامي)
-	makePart({ Size = Vector3.new(20, 9, 1), Position = center + Vector3.new(0, 5.5, -9.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	makePart({ Size = Vector3.new(1, 9, 20), Position = center + Vector3.new(-9.5, 5.5, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	makePart({ Size = Vector3.new(1, 9, 20), Position = center + Vector3.new(9.5, 5.5, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	makePart({ Size = Vector3.new(7, 9, 1), Position = center + Vector3.new(-6.5, 5.5, 9.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	makePart({ Size = Vector3.new(7, 9, 1), Position = center + Vector3.new(6.5, 5.5, 9.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	makePart({ Size = Vector3.new(6, 2.5, 1), Position = center + Vector3.new(0, 8.75, 9.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
-	-- سقف
-	local roof = makePart({ Size = Vector3.new(22, 1, 22), Position = center + Vector3.new(0, 10.5, 0), Material = Enum.Material.Slate, Color = Color3.fromRGB(155, 60, 50), Parent = house })
+	makePart({ Size = Vector3.new(w, 1, w), Position = center + Vector3.new(0, 0.5, 0), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(170, 130, 90), Parent = house })
 
-	MapBuilder.makeSign(house, roof, "🏠 بيت " .. ownerName, Color3.fromRGB(255, 210, 120))
+	for floor = 1, style.Floors do
+		local yBase = (floor - 1) * floorHeight
+		local yMid = yBase + 5.5
+		-- الجدران الخلفية والجانبية
+		makePart({ Size = Vector3.new(w, floorHeight, 1), Position = center + Vector3.new(0, yMid, -half + 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		makePart({ Size = Vector3.new(1, floorHeight, w), Position = center + Vector3.new(-half + 0.5, yMid, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		makePart({ Size = Vector3.new(1, floorHeight, w), Position = center + Vector3.new(half - 0.5, yMid, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		if floor == 1 then
+			-- الجدار الأمامي مع فتحة باب
+			local sideWidth = (w - 6) / 2
+			makePart({ Size = Vector3.new(sideWidth, floorHeight, 1), Position = center + Vector3.new(-(3 + sideWidth / 2), yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			makePart({ Size = Vector3.new(sideWidth, floorHeight, 1), Position = center + Vector3.new(3 + sideWidth / 2, yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			makePart({ Size = Vector3.new(6, 2.5, 1), Position = center + Vector3.new(0, yBase + floorHeight - 1.25, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		else
+			-- جدار أمامي كامل للطوابق العليا
+			makePart({ Size = Vector3.new(w, floorHeight, 1), Position = center + Vector3.new(0, yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			-- أرضية الطابق العلوي
+			makePart({ Size = Vector3.new(w - 2, 1, w - 2), Position = center + Vector3.new(0, yBase + 0.5, 0), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(160, 120, 80), Parent = house })
+		end
+	end
+
+	-- سقف
+	local roofY = style.Floors * floorHeight + 1.5
+	local roof = makePart({ Size = Vector3.new(w + 2, 1, w + 2), Position = center + Vector3.new(0, roofY, 0), Material = style.RoofMaterial, Color = style.RoofColor, Parent = house })
+
+	-- أعمدة مدخل للقصر
+	if houseLevel >= 3 then
+		makePart({ Size = Vector3.new(1.4, 8, 1.4), Position = center + Vector3.new(-4, 4.5, half + 1.5), Material = Enum.Material.Marble, Color = Color3.fromRGB(240, 238, 230), Parent = house })
+		makePart({ Size = Vector3.new(1.4, 8, 1.4), Position = center + Vector3.new(4, 4.5, half + 1.5), Material = Enum.Material.Marble, Color = Color3.fromRGB(240, 238, 230), Parent = house })
+	end
+
+	local levelName = levelInfo and levelInfo.Name or ("مستوى " .. houseLevel)
+	MapBuilder.makeSign(house, roof, levelName .. "\n" .. ownerName, Color3.fromRGB(255, 210, 120))
 
 	house.Parent = base.Parent
 	return house
+end
+
+-- كشك السوق المركزي بجانب الساحة
+local function buildMarket(root: Folder): ProximityPrompt
+	local market = Instance.new("Model")
+	market.Name = "Market"
+	market.Parent = root
+
+	local floor = makePart({
+		Size = Vector3.new(18, 1, 14),
+		Position = Vector3.new(-34, 0.5, -34),
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(150, 110, 70),
+		Parent = market,
+	})
+
+	-- أعمدة ومظلة
+	for _, cornerOffset in ipairs({
+		Vector3.new(-8, 5, -6), Vector3.new(8, 5, -6),
+		Vector3.new(-8, 5, 6), Vector3.new(8, 5, 6),
+	}) do
+		makePart({ Size = Vector3.new(1, 9, 1), Position = floor.Position + cornerOffset, Material = Enum.Material.Wood, Color = Color3.fromRGB(110, 80, 50), Parent = market })
+	end
+	makePart({ Size = Vector3.new(20, 1, 16), Position = floor.Position + Vector3.new(0, 10, 0), Material = Enum.Material.Fabric, Color = Color3.fromRGB(200, 80, 70), Parent = market })
+
+	local counter = makePart({
+		Name = "MarketCounter",
+		Size = Vector3.new(9, 3.5, 2.5),
+		Position = floor.Position + Vector3.new(0, 2.25, 5),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(120, 85, 55),
+		Parent = market,
+	})
+	MapBuilder.makeSign(market, counter, "🛒 السوق المركزي\nبيع وشراء بين اللاعبين", Color3.fromRGB(255, 180, 150))
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "MarketPrompt"
+	prompt.ActionText = "فتح السوق"
+	prompt.ObjectText = "السوق المركزي"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = counter
+
+	return prompt
 end
 
 function MapBuilder.build()
@@ -253,12 +335,14 @@ function MapBuilder.build()
 	local shopPrompt = buildShop(root)
 	local jobCenter = buildJobCenter(root)
 	local plots = buildPlots(root)
+	local marketPrompt = buildMarket(root)
 
 	return {
 		Root = root,
 		ShopPrompt = shopPrompt,
 		JobCenter = jobCenter,
 		Plots = plots,
+		MarketPrompt = marketPrompt,
 	}
 end
 

@@ -20,6 +20,9 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- آخر بيانات وصلت من السيرفر
 local currentData: any = nil
+-- معلومات الموسم الحالي (من SeasonChanged)
+local seasonInfo: any = nil
+local seasonEndsAt = 0
 
 -- ================= أدوات بناء الواجهة =================
 
@@ -261,6 +264,26 @@ local function rebuildInventory()
 		end
 	end
 
+	addHeader("🥚 منتجات الحيوانات (بِعها أو قايض بها)")
+	for productName, count in pairs(currentData.Inventory.Products) do
+		local product = GameConfig.AnimalProducts[productName]
+		if product and count > 0 then
+			order += 1
+			local row = makeRow(inventoryScroll, product.DisplayName .. "  x" .. count)
+			row.LayoutOrder = order
+		end
+	end
+
+	addHeader("🐔 حيواناتك (" .. #currentData.Animals .. "/" .. GameConfig.MaxAnimalsPerFarm .. ")")
+	for _, animalType in ipairs(currentData.Animals) do
+		local animal = GameConfig.Animals[animalType]
+		if animal then
+			order += 1
+			local row = makeRow(inventoryScroll, animal.DisplayName)
+			row.LayoutOrder = order
+		end
+	end
+
 	addHeader("🛠️ الأدوات")
 	for toolName, count in pairs(currentData.Inventory.Tools) do
 		local tool = GameConfig.Tools[toolName]
@@ -332,30 +355,59 @@ local function rebuildShop()
 		end)
 	end
 
-	addHeader("💵 بيع محاصيلك")
-	local hasCrops = false
+	addHeader("🐔 حيوانات المزرعة (تحتاج مزرعة!)")
+	for animalName, animal in pairs(GameConfig.Animals) do
+		local product = GameConfig.AnimalProducts[animal.Product]
+		order += 1
+		local row = makeRow(shopScroll, animal.DisplayName .. "  💰 " .. animal.Price .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
+		row.LayoutOrder = order
+		local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
+		buy.Size = UDim2.fromOffset(90, 34)
+		buy.Position = UDim2.new(1, -98, 0.5, -17)
+		buy.MouseButton1Click:Connect(function()
+			buyItem:FireServer("Animals", animalName)
+		end)
+	end
+
+	addHeader("💵 بيع محاصيلك ومنتجاتك")
+	local hasItems = false
 	if currentData then
 		for cropName, count in pairs(currentData.Inventory.Crops) do
 			local crop = GameConfig.Crops[cropName]
 			if crop and count > 0 then
-				hasCrops = true
+				hasItems = true
 				order += 1
-				local row = makeRow(shopScroll, crop.DisplayName .. "  x" .. count .. "  (💰 " .. crop.SellPrice .. " للواحدة)")
+				local isBonus = seasonInfo and GameConfig.Crops[cropName].DisplayName == seasonInfo.BonusCropName
+				local priceText = isBonus and ("⭐ 💰 " .. math.floor(crop.SellPrice * GameConfig.SeasonBonusMultiplier) .. " سعر الموسم!") or ("💰 " .. crop.SellPrice)
+				local row = makeRow(shopScroll, crop.DisplayName .. "  x" .. count .. "  (" .. priceText .. ")")
 				row.LayoutOrder = order
 				local sellAll = makeButton(row, "بيع الكل", Color3.fromRGB(220, 150, 60))
 				sellAll.Size = UDim2.fromOffset(100, 34)
 				sellAll.Position = UDim2.new(1, -108, 0.5, -17)
 				sellAll.MouseButton1Click:Connect(function()
 					sellCrop:FireServer(cropName, "all")
-					task.wait(0.2)
-					rebuildShop()
+				end)
+			end
+		end
+		for productName, count in pairs(currentData.Inventory.Products) do
+			local product = GameConfig.AnimalProducts[productName]
+			if product and count > 0 then
+				hasItems = true
+				order += 1
+				local row = makeRow(shopScroll, product.DisplayName .. "  x" .. count .. "  (💰 " .. product.SellPrice .. " للواحدة)")
+				row.LayoutOrder = order
+				local sellAll = makeButton(row, "بيع الكل", Color3.fromRGB(220, 150, 60))
+				sellAll.Size = UDim2.fromOffset(100, 34)
+				sellAll.Position = UDim2.new(1, -108, 0.5, -17)
+				sellAll.MouseButton1Click:Connect(function()
+					sellCrop:FireServer(productName, "all")
 				end)
 			end
 		end
 	end
-	if not hasCrops then
+	if not hasItems then
 		order += 1
-		local row = makeRow(shopScroll, "لا تملك محاصيل — ازرع واحصد أولًا!")
+		local row = makeRow(shopScroll, "لا تملك ما تبيعه — ازرع واحصد أولًا!")
 		row.LayoutOrder = order
 	end
 end
@@ -378,6 +430,58 @@ dataChanged.OnClientEvent:Connect(function(data)
 	end
 	if shopPanel.Visible then
 		rebuildShop()
+	end
+end)
+
+-- ================= لوحة الموسم =================
+
+local seasonFrame = Instance.new("Frame")
+seasonFrame.Size = UDim2.fromOffset(210, 64)
+seasonFrame.Position = UDim2.new(1, -220, 0, 8)
+seasonFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+seasonFrame.Parent = screenGui
+corner(seasonFrame, 12)
+
+local seasonLabel = Instance.new("TextLabel")
+seasonLabel.Size = UDim2.new(1, -10, 0.55, 0)
+seasonLabel.Position = UDim2.fromOffset(5, 2)
+seasonLabel.BackgroundTransparency = 1
+seasonLabel.Text = "..."
+seasonLabel.TextColor3 = Color3.new(1, 1, 1)
+seasonLabel.TextScaled = true
+seasonLabel.Font = Enum.Font.GothamBold
+seasonLabel.Parent = seasonFrame
+
+local seasonBonusLabel = Instance.new("TextLabel")
+seasonBonusLabel.Size = UDim2.new(1, -10, 0.4, 0)
+seasonBonusLabel.Position = UDim2.new(0, 5, 0.55, 0)
+seasonBonusLabel.BackgroundTransparency = 1
+seasonBonusLabel.Text = ""
+seasonBonusLabel.TextColor3 = Color3.fromRGB(255, 215, 100)
+seasonBonusLabel.TextScaled = true
+seasonBonusLabel.Font = Enum.Font.Gotham
+seasonBonusLabel.Parent = seasonFrame
+
+local seasonChanged = remotes:WaitForChild("SeasonChanged") :: RemoteEvent
+seasonChanged.OnClientEvent:Connect(function(payload)
+	seasonInfo = payload
+	seasonEndsAt = os.clock() + payload.SecondsLeft
+	seasonBonusLabel.Text = payload.BonusCropName ~= "" and ("⭐ محصول الموسم: " .. payload.BonusCropName) or ""
+	if shopPanel.Visible then
+		rebuildShop()
+	end
+end)
+
+-- عدّاد الوقت المتبقي للموسم
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if seasonInfo then
+			local remaining = math.max(0, seasonEndsAt - os.clock())
+			local minutes = math.floor(remaining / 60)
+			local seconds = math.floor(remaining % 60)
+			seasonLabel.Text = seasonInfo.DisplayName .. "  " .. string.format("%d:%02d", minutes, seconds)
+		end
 	end
 end)
 

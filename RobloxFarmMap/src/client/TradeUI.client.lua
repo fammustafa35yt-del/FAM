@@ -22,6 +22,9 @@ local function displayNameOf(category: string, itemName: string): string
 		local crop = GameConfig.Crops[itemName]
 		local base = crop and crop.DisplayName or itemName
 		return category == "Seeds" and ("بذور " .. base) or base
+	elseif category == "Products" then
+		local product = GameConfig.AnimalProducts[itemName]
+		return product and product.DisplayName or itemName
 	end
 	local tool = GameConfig.Tools[itemName]
 	return tool and tool.DisplayName or itemName
@@ -299,7 +302,7 @@ local function rebuildTradeWindow(payload)
 	-- عمود أغراضي المتاحة (المتبقي بعد ما أضفته للعرض)
 	clearList(myInventoryScroll)
 	if currentData then
-		for _, category in ipairs({ "Crops", "Seeds", "Tools" }) do
+		for _, category in ipairs({ "Crops", "Products", "Seeds", "Tools" }) do
 			for itemName, count in pairs(currentData.Inventory[category]) do
 				local available = count - countInOffer(mine, category, itemName)
 				if available > 0 then
