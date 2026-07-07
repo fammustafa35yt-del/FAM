@@ -27,6 +27,7 @@ local ShopSystem = require(script.Parent:WaitForChild("ShopSystem"))
 local JobSystem = require(script.Parent:WaitForChild("JobSystem"))
 local TradeSystem = require(script.Parent:WaitForChild("TradeSystem"))
 local MarketSystem = require(script.Parent:WaitForChild("MarketSystem"))
+local MonetizationSystem = require(script.Parent:WaitForChild("MonetizationSystem"))
 
 DataManager.init(remotes)
 
@@ -40,5 +41,6 @@ ShopSystem.init(remotes, map.ShopPrompt)
 JobSystem.init(map.JobCenter)
 TradeSystem.init(remotes)
 MarketSystem.init(remotes, map.MarketPrompt)
+MonetizationSystem.init()
 
 print("[FAM Farm] الماب جاهز! ✅")

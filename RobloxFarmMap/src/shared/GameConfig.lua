@@ -118,6 +118,10 @@ GameConfig.AnimalProducts = {
 	Egg = { DisplayName = "بيض 🥚", SellPrice = 12 },
 	Milk = { DisplayName = "حليب 🥛", SellPrice = 28 },
 	Wool = { DisplayName = "صوف 🧶", SellPrice = 48 },
+	-- منتجات الحيوانات المميزة (روبلوكس)
+	GoldenEgg = { DisplayName = "بيضة ذهبية ✨🥚", SellPrice = 65 },
+	RainbowDust = { DisplayName = "غبار قوس قزح 🌈", SellPrice = 160 },
+	Gem = { DisplayName = "جوهرة 💎", SellPrice = 320 },
 }
 
 -- ================= حيوانات المزرعة =================
@@ -151,9 +155,54 @@ GameConfig.Animals = {
 		BodyColor = Color3.fromRGB(230, 222, 200),
 		HeadColor = Color3.fromRGB(80, 65, 55),
 	},
+
+	-- ===== حيوانات مميزة: تُشترى بالروبلوكس فقط =====
+	-- Premium = true : لا تُباع بالعملات
+	-- ProductId      : ضع هنا رقم الـ Developer Product من Creator Hub
+	GoldenChicken = {
+		DisplayName = "دجاجة ذهبية ✨🐔",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "GoldenEgg",
+		ProduceTime = 35,
+		BodySize = Vector3.new(1.6, 1.4, 2),
+		BodyColor = Color3.fromRGB(255, 200, 50),
+		HeadColor = Color3.fromRGB(210, 150, 30),
+	},
+	Unicorn = {
+		DisplayName = "يونيكورن 🦄",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "RainbowDust",
+		ProduceTime = 100,
+		BodySize = Vector3.new(2.6, 2.6, 4),
+		BodyColor = Color3.fromRGB(245, 225, 255),
+		HeadColor = Color3.fromRGB(255, 150, 210),
+	},
+	Dragon = {
+		DisplayName = "تنين 🐉",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "Gem",
+		ProduceTime = 150,
+		BodySize = Vector3.new(3.2, 2.8, 5),
+		BodyColor = Color3.fromRGB(190, 60, 60),
+		HeadColor = Color3.fromRGB(120, 30, 30),
+	},
 }
--- أقصى عدد حيوانات لكل مزرعة (4 مواقع حول الأرض)
+-- أقصى عدد حيوانات عادية (تُشترى بالعملات) لكل مزرعة
 GameConfig.MaxAnimalsPerFarm = 4
+-- أقصى عدد حيوانات إجمالي (عادية + مميزة) — 8 مواقع حول الأرض
+GameConfig.MaxAnimalsTotal = 8
+
+-- ================= حزم العملات (روبلوكس) =================
+-- أنشئ Developer Products من Creator Hub وضع أرقامها هنا
+-- (سعر الروبلوكس تحدده أنت في لوحة التحكم)
+GameConfig.CoinPacks = {
+	{ ProductId = 0, Coins = 500, DisplayName = "كيس عملات 💰" },
+	{ ProductId = 0, Coins = 1500, DisplayName = "صندوق عملات 💰💰" },
+	{ ProductId = 0, Coins = 5000, DisplayName = "خزنة عملات 👑" },
+}
 
 -- ================= مستويات البيوت =================
 -- UpgradePrice : تكلفة الترقية لهذا المستوى

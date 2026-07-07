@@ -16,15 +16,19 @@ local farms: { [Player]: BasePart } = {}
 local spawned: { [Player]: { any } } = {}
 
 local function slotPosition(base: BasePart, slot: number): Vector3
-	-- الحيوانات تقف على العشب حول الأرض (شمال/جنوب/غرب/شرق)
+	-- الحيوانات تقف على العشب حول الأرض (8 مواقع: الجهات الأربع + الزوايا)
 	local distance = base.Size.X / 2 + 3.5
 	local offsets = {
 		Vector3.new(0, 0, -distance),
 		Vector3.new(0, 0, distance),
 		Vector3.new(-distance, 0, 0),
 		Vector3.new(distance, 0, 0),
+		Vector3.new(-distance, 0, -distance),
+		Vector3.new(distance, 0, -distance),
+		Vector3.new(-distance, 0, distance),
+		Vector3.new(distance, 0, distance),
 	}
-	local offset = offsets[((slot - 1) % 4) + 1]
+	local offset = offsets[((slot - 1) % 8) + 1]
 	return Vector3.new(base.Position.X + offset.X, 0, base.Position.Z + offset.Z)
 end
 
@@ -47,7 +51,8 @@ local function spawnAnimal(player: Player, animalType: string, slot: number)
 	body.Size = info.BodySize
 	body.Position = groundPos + Vector3.new(0, info.BodySize.Y / 2 + 0.6, 0)
 	body.Color = info.BodyColor
-	body.Material = Enum.Material.SmoothPlastic
+	-- الحيوانات المميزة تلمع ✨
+	body.Material = info.Premium and Enum.Material.Neon or Enum.Material.SmoothPlastic
 	body.Parent = model
 
 	local headSize = info.BodySize * 0.45
@@ -136,10 +141,14 @@ function AnimalSystem.registerFarm(player: Player, base: BasePart)
 	end
 end
 
--- يستدعيها ShopSystem عند شراء حيوان من المتجر
+-- يستدعيها ShopSystem عند شراء حيوان عادي بالعملات
 function AnimalSystem.buyAnimal(player: Player, animalType: string)
 	local info = GameConfig.Animals[animalType]
 	if not info then
+		return
+	end
+	if info.Premium then
+		DataManager.notify(player, "هذا حيوان مميز ✨ — يُشترى بالروبلوكس من قسم 💎 في المتجر", true)
 		return
 	end
 	if not farms[player] then
@@ -150,8 +159,20 @@ function AnimalSystem.buyAnimal(player: Player, animalType: string)
 	if not data then
 		return
 	end
-	if #data.Animals >= GameConfig.MaxAnimalsPerFarm then
-		DataManager.notify(player, "مزرعتك ممتلئة! (الحد الأقصى " .. GameConfig.MaxAnimalsPerFarm .. " حيوانات)", true)
+	-- الحد يُحسب على الحيوانات العادية فقط (المميزة لها حد إجمالي أعلى)
+	local regularCount = 0
+	for _, ownedType in ipairs(data.Animals) do
+		local ownedInfo = GameConfig.Animals[ownedType]
+		if ownedInfo and not ownedInfo.Premium then
+			regularCount += 1
+		end
+	end
+	if regularCount >= GameConfig.MaxAnimalsPerFarm then
+		DataManager.notify(player, "وصلت لحد الحيوانات العادية (" .. GameConfig.MaxAnimalsPerFarm .. ")", true)
+		return
+	end
+	if #data.Animals >= GameConfig.MaxAnimalsTotal then
+		DataManager.notify(player, "مزرعتك ممتلئة! (الحد الأقصى " .. GameConfig.MaxAnimalsTotal .. " حيوانات)", true)
 		return
 	end
 	if not DataManager.trySpend(player, info.Price) then
@@ -162,6 +183,32 @@ function AnimalSystem.buyAnimal(player: Player, animalType: string)
 	spawnAnimal(player, animalType, #data.Animals)
 	DataManager.pushUpdate(player)
 	DataManager.notify(player, "اشتريت " .. info.DisplayName .. " — ستنتج قريبًا!")
+end
+
+-- منح حيوان (مميز عادةً) بعد شراء ناجح بالروبلوكس — يستدعيها MonetizationSystem
+-- ترجع false إذا تعذر المنح الآن (ProcessReceipt سيعيد المحاولة لاحقًا فلا تضيع الأموال)
+function AnimalSystem.grantAnimal(player: Player, animalType: string): boolean
+	local info = GameConfig.Animals[animalType]
+	if not info then
+		return false
+	end
+	local data = DataManager.getData(player)
+	if not data then
+		return false
+	end
+	if #data.Animals >= GameConfig.MaxAnimalsTotal then
+		DataManager.notify(player, "مزرعتك ممتلئة! أفسح مكانًا وسيصلك الحيوان تلقائيًا", true)
+		return false
+	end
+	table.insert(data.Animals, animalType)
+	if farms[player] then
+		spawnAnimal(player, animalType, #data.Animals)
+	else
+		DataManager.notify(player, "سيظهر " .. info.DisplayName .. " فور امتلاكك مزرعة! 🌾")
+	end
+	DataManager.pushUpdate(player)
+	DataManager.notify(player, "حصلت على " .. info.DisplayName .. " — مبروك! ✨")
+	return true
 end
 
 function AnimalSystem.init()

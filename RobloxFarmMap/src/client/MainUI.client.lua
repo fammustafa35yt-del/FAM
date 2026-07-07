@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -274,7 +275,7 @@ local function rebuildInventory()
 		end
 	end
 
-	addHeader("🐔 حيواناتك (" .. #currentData.Animals .. "/" .. GameConfig.MaxAnimalsPerFarm .. ")")
+	addHeader("🐔 حيواناتك (" .. #currentData.Animals .. "/" .. GameConfig.MaxAnimalsTotal .. ")")
 	for _, animalType in ipairs(currentData.Animals) do
 		local animal = GameConfig.Animals[animalType]
 		if animal then
@@ -357,16 +358,69 @@ local function rebuildShop()
 
 	addHeader("🐔 حيوانات المزرعة (تحتاج مزرعة!)")
 	for animalName, animal in pairs(GameConfig.Animals) do
-		local product = GameConfig.AnimalProducts[animal.Product]
-		order += 1
-		local row = makeRow(shopScroll, animal.DisplayName .. "  💰 " .. animal.Price .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
-		row.LayoutOrder = order
-		local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
-		buy.Size = UDim2.fromOffset(90, 34)
-		buy.Position = UDim2.new(1, -98, 0.5, -17)
-		buy.MouseButton1Click:Connect(function()
-			buyItem:FireServer("Animals", animalName)
+		if not animal.Premium then
+			local product = GameConfig.AnimalProducts[animal.Product]
+			order += 1
+			local row = makeRow(shopScroll, animal.DisplayName .. "  💰 " .. animal.Price .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
+			row.LayoutOrder = order
+			local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
+			buy.Size = UDim2.fromOffset(90, 34)
+			buy.Position = UDim2.new(1, -98, 0.5, -17)
+			buy.MouseButton1Click:Connect(function()
+				buyItem:FireServer("Animals", animalName)
+			end)
+		end
+	end
+
+	-- زر شراء بالروبلوكس: يجلب السعر الحقيقي من روبلوكس، أو يظهر تحذيرًا إن لم يُعد المنتج
+	local function addRobuxButton(row: Frame, productId: number)
+		if productId <= 0 then
+			local warnButton = makeButton(row, "⚠️ غير مُعد", Color3.fromRGB(110, 110, 120))
+			warnButton.Size = UDim2.fromOffset(110, 34)
+			warnButton.Position = UDim2.new(1, -118, 0.5, -17)
+			warnButton.MouseButton1Click:Connect(function()
+				notifLabel.Text = "ضع رقم المنتج (ProductId) في GameConfig أولًا"
+				notifLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+				notifLabel.TextTransparency = 0
+				notifLabel.BackgroundTransparency = 0.25
+			end)
+			return
+		end
+		local buy = makeButton(row, "شراء", Color3.fromRGB(70, 190, 120))
+		buy.Size = UDim2.fromOffset(110, 34)
+		buy.Position = UDim2.new(1, -118, 0.5, -17)
+		-- جلب السعر بالروبلوكس لعرضه على الزر
+		task.spawn(function()
+			local ok, productInfo = pcall(function()
+				return MarketplaceService:GetProductInfo(productId, Enum.InfoType.Product)
+			end)
+			if ok and productInfo and buy.Parent then
+				buy.Text = "R$ " .. tostring(productInfo.PriceInRobux or "?")
+			end
 		end)
+		buy.MouseButton1Click:Connect(function()
+			MarketplaceService:PromptProductPurchase(player, productId)
+		end)
+	end
+
+	addHeader("💎 شراء عملات (روبلوكس)")
+	for _, pack in ipairs(GameConfig.CoinPacks) do
+		order += 1
+		local row = makeRow(shopScroll, pack.DisplayName .. "  (+" .. pack.Coins .. " 💰)")
+		row.LayoutOrder = order
+		addRobuxButton(row, pack.ProductId or 0)
+	end
+
+	addHeader("💎 حيوانات مميزة (روبلوكس)")
+	for _, animalName in ipairs({ "GoldenChicken", "Unicorn", "Dragon" }) do
+		local animal = GameConfig.Animals[animalName]
+		if animal and animal.Premium then
+			local product = GameConfig.AnimalProducts[animal.Product]
+			order += 1
+			local row = makeRow(shopScroll, animal.DisplayName .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
+			row.LayoutOrder = order
+			addRobuxButton(row, animal.ProductId or 0)
+		end
 	end
 
 	addHeader("💵 بيع محاصيلك ومنتجاتك")
