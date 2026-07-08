@@ -1,0 +1,3858 @@
+<roblox version="4"><Item class="Workspace" referent="RBX1"><Properties><string name="Name">Workspace</string></Properties><Item class="Part" referent="RBX2"><Properties><string name="Name">Baseplate</string><bool name="Anchored">true</bool><bool name="Locked">true</bool><Vector3 name="size"><X>512</X><Y>16</Y><Z>512</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>-8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties></Item></Item><Item class="ReplicatedStorage" referent="RBX3"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX4"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX5"><Properties><string name="Name">GameConfig</string><ProtectedString name="Source">--!strict
+-- إعدادات اللعبة الرئيسية | Main game configuration
+-- عدّل الأسعار والأوقات من هنا بسهولة
+
+local GameConfig = {}
+
+-- المال الابتدائي عند أول دخول
+GameConfig.StartingMoney = 150
+
+-- ================= المحاصيل =================
+-- SeedPrice  : سعر البذرة في المتجر
+-- SellPrice  : سعر بيع المحصول الواحد
+-- GrowTime   : وقت النمو بالثواني
+GameConfig.Crops = {
+	Wheat = {
+		DisplayName = "قمح 🌾",
+		SeedPrice = 10,
+		SellPrice = 18,
+		GrowTime = 30,
+		Color = Color3.fromRGB(226, 196, 92),
+	},
+	Carrot = {
+		DisplayName = "جزر 🥕",
+		SeedPrice = 18,
+		SellPrice = 32,
+		GrowTime = 55,
+		Color = Color3.fromRGB(235, 125, 40),
+	},
+	Corn = {
+		DisplayName = "ذرة 🌽",
+		SeedPrice = 30,
+		SellPrice = 55,
+		GrowTime = 90,
+		Color = Color3.fromRGB(245, 215, 66),
+	},
+	Pumpkin = {
+		DisplayName = "يقطين 🎃",
+		SeedPrice = 55,
+		SellPrice = 105,
+		GrowTime = 150,
+		Color = Color3.fromRGB(230, 126, 34),
+	},
+}
+
+-- ================= الأدوات =================
+-- Consumable = true : أداة تُستهلك عند الاستخدام (مثل السماد)
+GameConfig.Tools = {
+	WateringCan = {
+		DisplayName = "رشاش ماء 🚿",
+		Price = 75,
+		Description = "اسقِ النبتة ليقل وقت النمو للنصف (مرة لكل نبتة)",
+		Consumable = false,
+	},
+	Fertilizer = {
+		DisplayName = "سماد 💩",
+		Price = 40,
+		Description = "يُنهي 75% من وقت النمو المتبقي فورًا (يُستهلك)",
+		Consumable = true,
+	},
+	GoldenScythe = {
+		DisplayName = "منجل ذهبي ⚒️",
+		Price = 250,
+		Description = "يضاعف كمية الحصاد",
+		Consumable = false,
+	},
+}
+
+-- ================= العقارات =================
+GameConfig.FarmPlot = {
+	Count = 8,       -- عدد أراضي المزارع في الماب
+	Price = 250,     -- سعر الأرض
+	Size = 28,       -- حجم الأرض (ستود)
+	SoilRows = 3,    -- صفوف التربة
+	SoilCols = 3,    -- أعمدة التربة
+}
+
+GameConfig.HousePlot = {
+	Count = 6,       -- عدد أراضي البيوت
+	Price = 600,     -- سعر الأرض مع البيت
+	Size = 34,
+}
+
+-- ================= الوظائف =================
+-- Wage     : الأجر
+-- Cooldown : ثواني الانتظار بين كل عملية عمل
+-- Hold     : مدة الضغط المطول على الزر (E)
+GameConfig.Jobs = {
+	{
+		Id = "Farmer",
+		DisplayName = "عامل مزرعة 👨‍🌾",
+		Wage = 20,
+		Cooldown = 6,
+		Hold = 2,
+	},
+	{
+		Id = "Builder",
+		DisplayName = "عامل بناء 👷",
+		Wage = 45,
+		Cooldown = 15,
+		Hold = 4,
+	},
+	{
+		Id = "Delivery",
+		DisplayName = "عامل توصيل 📦",
+		Wage = 60,
+		Cooldown = 5,
+		Hold = 1,
+		-- التوصيل: خذ الطرد من نقطة الاستلام ووصله لنقطة التسليم
+		IsDelivery = true,
+	},
+}
+
+-- أقصى مبلغ يمكن إرساله في صفقة تبادل واحدة
+GameConfig.MaxTradeMoney = 100000
+
+-- ================= منتجات الحيوانات =================
+GameConfig.AnimalProducts = {
+	Egg = { DisplayName = "بيض 🥚", SellPrice = 12 },
+	Milk = { DisplayName = "حليب 🥛", SellPrice = 28 },
+	Wool = { DisplayName = "صوف 🧶", SellPrice = 48 },
+	-- منتجات الحيوانات المميزة (روبلوكس)
+	GoldenEgg = { DisplayName = "بيضة ذهبية ✨🥚", SellPrice = 65 },
+	RainbowDust = { DisplayName = "غبار قوس قزح 🌈", SellPrice = 160 },
+	Gem = { DisplayName = "جوهرة 💎", SellPrice = 320 },
+}
+
+-- ================= حيوانات المزرعة =================
+-- Product     : المنتج الذي ينتجه الحيوان
+-- ProduceTime : ثواني إنتاج المنتج الواحد
+GameConfig.Animals = {
+	Chicken = {
+		DisplayName = "دجاجة 🐔",
+		Price = 120,
+		Product = "Egg",
+		ProduceTime = 40,
+		BodySize = Vector3.new(1.6, 1.4, 2),
+		BodyColor = Color3.fromRGB(240, 240, 230),
+		HeadColor = Color3.fromRGB(200, 60, 50),
+	},
+	Cow = {
+		DisplayName = "بقرة 🐄",
+		Price = 350,
+		Product = "Milk",
+		ProduceTime = 90,
+		BodySize = Vector3.new(3, 2.4, 4.5),
+		BodyColor = Color3.fromRGB(245, 245, 245),
+		HeadColor = Color3.fromRGB(50, 50, 50),
+	},
+	Sheep = {
+		DisplayName = "خروف 🐑",
+		Price = 520,
+		Product = "Wool",
+		ProduceTime = 140,
+		BodySize = Vector3.new(2.4, 2, 3.4),
+		BodyColor = Color3.fromRGB(230, 222, 200),
+		HeadColor = Color3.fromRGB(80, 65, 55),
+	},
+
+	-- ===== حيوانات مميزة: تُشترى بالروبلوكس فقط =====
+	-- Premium = true : لا تُباع بالعملات
+	-- ProductId      : ضع هنا رقم الـ Developer Product من Creator Hub
+	GoldenChicken = {
+		DisplayName = "دجاجة ذهبية ✨🐔",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "GoldenEgg",
+		ProduceTime = 35,
+		BodySize = Vector3.new(1.6, 1.4, 2),
+		BodyColor = Color3.fromRGB(255, 200, 50),
+		HeadColor = Color3.fromRGB(210, 150, 30),
+	},
+	Unicorn = {
+		DisplayName = "يونيكورن 🦄",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "RainbowDust",
+		ProduceTime = 100,
+		BodySize = Vector3.new(2.6, 2.6, 4),
+		BodyColor = Color3.fromRGB(245, 225, 255),
+		HeadColor = Color3.fromRGB(255, 150, 210),
+	},
+	Dragon = {
+		DisplayName = "تنين 🐉",
+		Premium = true,
+		ProductId = 0, -- ⚠️ ضع رقم المنتج هنا
+		Product = "Gem",
+		ProduceTime = 150,
+		BodySize = Vector3.new(3.2, 2.8, 5),
+		BodyColor = Color3.fromRGB(190, 60, 60),
+		HeadColor = Color3.fromRGB(120, 30, 30),
+	},
+}
+-- أقصى عدد حيوانات عادية (تُشترى بالعملات) لكل مزرعة
+GameConfig.MaxAnimalsPerFarm = 4
+-- أقصى عدد حيوانات إجمالي (عادية + مميزة) — 8 مواقع حول الأرض
+GameConfig.MaxAnimalsTotal = 8
+
+-- ================= حزم العملات (روبلوكس) =================
+-- أنشئ Developer Products من Creator Hub وضع أرقامها هنا
+-- (سعر الروبلوكس تحدده أنت في لوحة التحكم)
+GameConfig.CoinPacks = {
+	{ ProductId = 0, Coins = 500, DisplayName = "كيس عملات 💰" },
+	{ ProductId = 0, Coins = 1500, DisplayName = "صندوق عملات 💰💰" },
+	{ ProductId = 0, Coins = 5000, DisplayName = "خزنة عملات 👑" },
+}
+
+-- ================= مستويات البيوت =================
+-- UpgradePrice : تكلفة الترقية لهذا المستوى
+-- Income       : دخل الإيجار الدوري
+GameConfig.HouseLevels = {
+	[1] = { Name = "بيت صغير 🏠", UpgradePrice = 0, Income = 15 },
+	[2] = { Name = "بيت عائلي 🏡", UpgradePrice = 900, Income = 45 },
+	[3] = { Name = "قصر 🏰", UpgradePrice = 2200, Income = 120 },
+}
+-- كل كم ثانية يُدفع دخل الإيجار
+GameConfig.HouseIncomeInterval = 120
+
+-- ================= المواسم =================
+-- GrowthMultiplier : سرعة نمو المحاصيل (أكبر = أسرع)
+-- BonusCrop        : محصول الموسم — يُباع بسعر أعلى في المتجر
+GameConfig.Seasons = {
+	{
+		Id = "Spring",
+		DisplayName = "الربيع 🌸",
+		GrowthMultiplier = 1.3,
+		BonusCrop = "Carrot",
+		GroundColor = Color3.fromRGB(96, 170, 84),
+	},
+	{
+		Id = "Summer",
+		DisplayName = "الصيف ☀️",
+		GrowthMultiplier = 1.0,
+		BonusCrop = "Corn",
+		GroundColor = Color3.fromRGB(120, 165, 70),
+	},
+	{
+		Id = "Autumn",
+		DisplayName = "الخريف 🍂",
+		GrowthMultiplier = 0.85,
+		BonusCrop = "Pumpkin",
+		GroundColor = Color3.fromRGB(150, 135, 70),
+	},
+	{
+		Id = "Winter",
+		DisplayName = "الشتاء ❄️",
+		GrowthMultiplier = 0.55,
+		BonusCrop = "Wheat",
+		GroundColor = Color3.fromRGB(205, 210, 218),
+	},
+}
+-- مدة الموسم بالثواني
+GameConfig.SeasonLength = 300
+-- مضاعف سعر بيع محصول الموسم
+GameConfig.SeasonBonusMultiplier = 1.5
+
+-- ================= السوق المركزي =================
+GameConfig.Market = {
+	MaxListingsPerPlayer = 4, -- أقصى عدد عروض لكل لاعب
+	MaxPrice = 1000000,
+}
+
+return GameConfig
+</ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX6"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX7"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX8"><Properties><string name="Name">Main</string><ProtectedString name="Source">--!strict
+-- نقطة تشغيل السيرفر: يبني الماب ويشغّل كل الأنظمة بالترتيب
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- مجلد الريموتات المشتركة بين السيرفر والعميل
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+
+local dataChanged = Instance.new("RemoteEvent")
+dataChanged.Name = "DataChanged"
+dataChanged.Parent = remotes
+
+local notify = Instance.new("RemoteEvent")
+notify.Name = "Notify"
+notify.Parent = remotes
+
+remotes.Parent = ReplicatedStorage
+
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
+local FarmingSystem = require(script.Parent:WaitForChild("FarmingSystem"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
+local PlotManager = require(script.Parent:WaitForChild("PlotManager"))
+local ShopSystem = require(script.Parent:WaitForChild("ShopSystem"))
+local JobSystem = require(script.Parent:WaitForChild("JobSystem"))
+local TradeSystem = require(script.Parent:WaitForChild("TradeSystem"))
+local MarketSystem = require(script.Parent:WaitForChild("MarketSystem"))
+local MonetizationSystem = require(script.Parent:WaitForChild("MonetizationSystem"))
+
+DataManager.init(remotes)
+
+local map = MapBuilder.build()
+
+SeasonSystem.init(remotes)
+FarmingSystem.init(remotes)
+AnimalSystem.init()
+PlotManager.init(map.Plots)
+ShopSystem.init(remotes, map.ShopPrompt)
+JobSystem.init(map.JobCenter)
+TradeSystem.init(remotes)
+MarketSystem.init(remotes, map.MarketPrompt)
+MonetizationSystem.init()
+
+print("[FAM Farm] الماب جاهز! ✅")
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">DataManager</string><ProtectedString name="Source">--!strict
+-- إدارة بيانات اللاعبين: المال، الحقيبة، الممتلكات + الحفظ في DataStore
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+
+local DataManager = {}
+
+local STORE_NAME = "FAMFarm_v1"
+local store = nil
+pcall(function()
+	store = DataStoreService:GetDataStore(STORE_NAME)
+end)
+
+-- بيانات الجلسة لكل لاعب
+-- sessions[player] = { data = {...}, selectedSeed = string? }
+local sessions: { [Player]: any } = {}
+
+local remotes: Folder? = nil
+
+local function defaultData()
+	return {
+		Money = GameConfig.StartingMoney,
+		Inventory = {
+			Seeds = {},    -- { Wheat = 3 }
+			Crops = {},    -- { Wheat = 5 }
+			Tools = {},    -- { WateringCan = 1 }
+			Products = {}, -- { Egg = 4 } منتجات الحيوانات
+		},
+		OwnedFarms = {},  -- { "Farm1" }
+		OwnedHouses = {}, -- { "House2" }
+		Animals = {},     -- { "Chicken", "Cow" }
+		HouseLevel = 1,   -- مستوى البيت الحالي
+	}
+end
+
+-- دوال تُستدعى قبل حفظ بيانات اللاعب (مثل إرجاع أغراض السوق المحجوزة)
+local beforeSaveHooks: { (Player) -&gt; () } = {}
+
+function DataManager.onBeforeSave(hook: (Player) -&gt; ())
+	table.insert(beforeSaveHooks, hook)
+end
+
+local function keyFor(player: Player): string
+	return "player_" .. player.UserId
+end
+
+-- إرسال نسخة محدثة من البيانات لواجهة اللاعب
+function DataManager.pushUpdate(player: Player)
+	local session = sessions[player]
+	if not session or not remotes then
+		return
+	end
+	local dataChanged = remotes:FindFirstChild("DataChanged") :: RemoteEvent?
+	if dataChanged then
+		dataChanged:FireClient(player, {
+			Money = session.data.Money,
+			Inventory = session.data.Inventory,
+			OwnedFarms = session.data.OwnedFarms,
+			OwnedHouses = session.data.OwnedHouses,
+			Animals = session.data.Animals,
+			HouseLevel = session.data.HouseLevel,
+			SelectedSeed = session.selectedSeed,
+		})
+	end
+end
+
+function DataManager.notify(player: Player, message: string, isError: boolean?)
+	if not remotes then
+		return
+	end
+	local notifyRemote = remotes:FindFirstChild("Notify") :: RemoteEvent?
+	if notifyRemote then
+		notifyRemote:FireClient(player, message, isError == true)
+	end
+end
+
+function DataManager.getData(player: Player)
+	local session = sessions[player]
+	return session and session.data or nil
+end
+
+function DataManager.getSession(player: Player)
+	return sessions[player]
+end
+
+function DataManager.getMoney(player: Player): number
+	local data = DataManager.getData(player)
+	return data and data.Money or 0
+end
+
+function DataManager.addMoney(player: Player, amount: number)
+	local data = DataManager.getData(player)
+	if not data then
+		return
+	end
+	data.Money = math.max(0, math.floor(data.Money + amount))
+	DataManager.pushUpdate(player)
+end
+
+-- يخصم المبلغ فقط إذا كان الرصيد كافيًا
+function DataManager.trySpend(player: Player, amount: number): boolean
+	local data = DataManager.getData(player)
+	if not data or data.Money &lt; amount then
+		return false
+	end
+	data.Money -= amount
+	DataManager.pushUpdate(player)
+	return true
+end
+
+function DataManager.getItemCount(player: Player, category: string, itemName: string): number
+	local data = DataManager.getData(player)
+	if not data then
+		return 0
+	end
+	local bucket = data.Inventory[category]
+	return bucket and bucket[itemName] or 0
+end
+
+function DataManager.addItem(player: Player, category: string, itemName: string, amount: number)
+	local data = DataManager.getData(player)
+	if not data then
+		return
+	end
+	local bucket = data.Inventory[category]
+	if not bucket then
+		return
+	end
+	bucket[itemName] = math.max(0, (bucket[itemName] or 0) + amount)
+	if bucket[itemName] == 0 then
+		bucket[itemName] = nil
+	end
+	DataManager.pushUpdate(player)
+end
+
+-- يزيل الكمية فقط إذا كانت متوفرة بالكامل
+function DataManager.tryRemoveItem(player: Player, category: string, itemName: string, amount: number): boolean
+	if DataManager.getItemCount(player, category, itemName) &lt; amount then
+		return false
+	end
+	DataManager.addItem(player, category, itemName, -amount)
+	return true
+end
+
+local function load(player: Player)
+	local data = defaultData()
+	if store then
+		local ok, saved = pcall(function()
+			return store:GetAsync(keyFor(player))
+		end)
+		if ok and typeof(saved) == "table" then
+			-- دمج البيانات المحفوظة مع الافتراضية (لحماية التحديثات المستقبلية)
+			for key, value in pairs(saved) do
+				data[key] = value
+			end
+			data.Inventory = data.Inventory or {}
+			data.Inventory.Seeds = data.Inventory.Seeds or {}
+			data.Inventory.Crops = data.Inventory.Crops or {}
+			data.Inventory.Tools = data.Inventory.Tools or {}
+			data.Inventory.Products = data.Inventory.Products or {}
+			data.OwnedFarms = data.OwnedFarms or {}
+			data.OwnedHouses = data.OwnedHouses or {}
+			data.Animals = data.Animals or {}
+			data.HouseLevel = data.HouseLevel or 1
+		end
+	end
+	sessions[player] = { data = data, selectedSeed = nil }
+	DataManager.pushUpdate(player)
+end
+
+local function save(player: Player, isFinal: boolean?)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	-- عند المغادرة فقط: إرجاع أي أغراض محجوزة (عروض السوق المركزي مثلًا)
+	if isFinal then
+		for _, hook in ipairs(beforeSaveHooks) do
+			pcall(hook, player)
+		end
+	end
+	if not store then
+		return
+	end
+	pcall(function()
+		store:SetAsync(keyFor(player), session.data)
+	end)
+end
+
+function DataManager.init(remotesFolder: Folder)
+	remotes = remotesFolder
+
+	-- يطلبها العميل عند فتح الواجهة لأول مرة
+	local requestData = Instance.new("RemoteEvent")
+	requestData.Name = "RequestData"
+	requestData.Parent = remotesFolder
+	requestData.OnServerEvent:Connect(function(player)
+		DataManager.pushUpdate(player)
+	end)
+
+	Players.PlayerAdded:Connect(load)
+	for _, player in ipairs(Players:GetPlayers()) do
+		task.spawn(load, player)
+	end
+
+	Players.PlayerRemoving:Connect(function(player)
+		save(player, true)
+		sessions[player] = nil
+	end)
+
+	-- حفظ الجميع عند إغلاق السيرفر
+	game:BindToClose(function()
+		if RunService:IsStudio() then
+			task.wait(2)
+		end
+		for _, player in ipairs(Players:GetPlayers()) do
+			save(player, true)
+		end
+	end)
+
+	-- حفظ تلقائي كل دقيقتين
+	task.spawn(function()
+		while true do
+			task.wait(120)
+			for _, player in ipairs(Players:GetPlayers()) do
+				task.spawn(save, player)
+			end
+		end
+	end)
+end
+
+return DataManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">MapBuilder</string><ProtectedString name="Source">--!strict
+-- بناء الماب برمجيًا: الأرضية، الساحة، الطرق، المتجر، مركز الوظائف، وقواعد الأراضي
+-- لا تحتاج لبناء أي شيء يدويًا في ستوديو
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+
+local MapBuilder = {}
+
+local function makePart(props: { [string]: any }): Part
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	for key, value in pairs(props) do
+		(part :: any)[key] = value
+	end
+	return part
+end
+
+-- لافتة نصية فوق أو على جزء
+function MapBuilder.makeSign(parent: Instance, adornee: BasePart, text: string, textColor: Color3?)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(260, 70)
+	gui.StudsOffset = Vector3.new(0, 4, 0)
+	gui.AlwaysOnTop = false
+	gui.MaxDistance = 90
+	gui.Adornee = adornee
+	gui.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = textColor or Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.2
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.Parent = gui
+	return label
+end
+
+local function buildShop(root: Folder)
+	local shop = Instance.new("Model")
+	shop.Name = "Shop"
+	shop.Parent = root
+
+	local floor = makePart({
+		Name = "Floor",
+		Size = Vector3.new(30, 1, 22),
+		Position = Vector3.new(0, 0.5, -60),
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(160, 120, 80),
+		Parent = shop,
+	})
+
+	-- جدران بسيطة (الجدار الأمامي مفتوح كمدخل)
+	local wallColor = Color3.fromRGB(220, 200, 160)
+	makePart({ Size = Vector3.new(30, 10, 1), Position = Vector3.new(0, 6, -71), Color = wallColor, Material = Enum.Material.Brick, Parent = shop })
+	makePart({ Size = Vector3.new(1, 10, 22), Position = Vector3.new(-15, 6, -60), Color = wallColor, Material = Enum.Material.Brick, Parent = shop })
+	makePart({ Size = Vector3.new(1, 10, 22), Position = Vector3.new(15, 6, -60), Color = wallColor, Material = Enum.Material.Brick, Parent = shop })
+	makePart({ Size = Vector3.new(32, 1, 24), Position = Vector3.new(0, 11.5, -60), Color = Color3.fromRGB(150, 60, 50), Material = Enum.Material.Slate, Parent = shop })
+
+	-- طاولة البيع مع زر فتح المتجر
+	local counter = makePart({
+		Name = "Counter",
+		Size = Vector3.new(10, 3.5, 3),
+		Position = Vector3.new(0, 2.75, -65),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(120, 85, 55),
+		Parent = shop,
+	})
+	MapBuilder.makeSign(shop, counter, "🏪 المتجر\nاضغط E للتسوق", Color3.fromRGB(255, 230, 130))
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "ShopPrompt"
+	prompt.ActionText = "فتح المتجر"
+	prompt.ObjectText = "المتجر"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = counter
+
+	return prompt
+end
+
+local function buildJobCenter(root: Folder): Model
+	local center = Instance.new("Model")
+	center.Name = "JobCenter"
+	center.Parent = root
+
+	local floor = makePart({
+		Name = "Floor",
+		Size = Vector3.new(34, 1, 16),
+		Position = Vector3.new(60, 0.5, 0),
+		Material = Enum.Material.Concrete,
+		Color = Color3.fromRGB(180, 180, 180),
+		Parent = center,
+	})
+	MapBuilder.makeSign(center, floor, "🏢 مركز الوظائف\nاعمل واكسب المال!", Color3.fromRGB(140, 220, 255))
+
+	-- منصة لكل وظيفة (JobSystem يضيف الأزرار عليها)
+	local padColors = {
+		Color3.fromRGB(120, 200, 90),
+		Color3.fromRGB(240, 180, 60),
+		Color3.fromRGB(90, 150, 240),
+	}
+	for index, job in ipairs(GameConfig.Jobs) do
+		local pad = makePart({
+			Name = "JobPad_" .. job.Id,
+			Size = Vector3.new(8, 1.2, 8),
+			Position = Vector3.new(60 + (index - 2) * 11, 1.6, 0),
+			Material = Enum.Material.Neon,
+			Color = padColors[((index - 1) % #padColors) + 1],
+			Parent = center,
+		})
+		MapBuilder.makeSign(center, pad, job.DisplayName .. "\n💰 " .. job.Wage .. " لكل مهمة")
+	end
+
+	-- نقطة تسليم الطرود لوظيفة التوصيل (بعيدة عن المركز)
+	local dropoff = makePart({
+		Name = "DeliveryDropoff",
+		Size = Vector3.new(8, 1.2, 8),
+		Position = Vector3.new(-60, 1.6, 60),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(240, 100, 100),
+		Parent = center,
+	})
+	MapBuilder.makeSign(center, dropoff, "📦 نقطة تسليم الطرود")
+
+	return center
+end
+
+-- إنشاء قواعد الأراضي (مزارع وبيوت) وإرجاع قائمة بها لـ PlotManager
+local function buildPlots(root: Folder)
+	local plotsFolder = Instance.new("Folder")
+	plotsFolder.Name = "Plots"
+	plotsFolder.Parent = root
+
+	local plots = {}
+
+	-- أراضي المزارع: صفان على الجهة الغربية
+	local farmSize = GameConfig.FarmPlot.Size
+	for i = 1, GameConfig.FarmPlot.Count do
+		local row = math.ceil(i / 4)
+		local col = ((i - 1) % 4) + 1
+		local position = Vector3.new(
+			-140 + (row - 1) * (farmSize + 14),
+			0.55,
+			-70 + (col - 1) * (farmSize + 10)
+		)
+		local base = makePart({
+			Name = "Farm" .. i,
+			Size = Vector3.new(farmSize, 1.1, farmSize),
+			Position = position,
+			Material = Enum.Material.Ground,
+			Color = Color3.fromRGB(130, 100, 70),
+			Parent = plotsFolder,
+		})
+		table.insert(plots, { Id = "Farm" .. i, Kind = "Farm", Base = base })
+	end
+
+	-- أراضي البيوت: صف على الجهة الشمالية
+	local houseSize = GameConfig.HousePlot.Size
+	for i = 1, GameConfig.HousePlot.Count do
+		local position = Vector3.new(
+			-105 + (i - 1) * (houseSize + 10),
+			0.55,
+			120
+		)
+		local base = makePart({
+			Name = "House" .. i,
+			Size = Vector3.new(houseSize, 1.1, houseSize),
+			Position = position,
+			Material = Enum.Material.Grass,
+			Color = Color3.fromRGB(106, 170, 90),
+			Parent = plotsFolder,
+		})
+		table.insert(plots, { Id = "House" .. i, Kind = "House", Base = base })
+	end
+
+	return plots
+end
+
+-- أشكال البيوت حسب المستوى
+local HOUSE_STYLES = {
+	[1] = { Width = 20, Floors = 1, WallColor = Color3.fromRGB(235, 225, 200), RoofColor = Color3.fromRGB(155, 60, 50), RoofMaterial = Enum.Material.Slate },
+	[2] = { Width = 24, Floors = 2, WallColor = Color3.fromRGB(225, 210, 180), RoofColor = Color3.fromRGB(60, 95, 160), RoofMaterial = Enum.Material.Slate },
+	[3] = { Width = 28, Floors = 2, WallColor = Color3.fromRGB(245, 240, 225), RoofColor = Color3.fromRGB(212, 175, 55), RoofMaterial = Enum.Material.Metal },
+}
+
+-- بناء بيت فوق أرض البيت (يكبر ويتحسن مع كل مستوى)
+function MapBuilder.buildHouse(base: BasePart, ownerName: string, level: number?)
+	local houseLevel = math.clamp(level or 1, 1, #HOUSE_STYLES)
+	local style = HOUSE_STYLES[houseLevel]
+	local levelInfo = GameConfig.HouseLevels[houseLevel]
+
+	local house = Instance.new("Model")
+	house.Name = "HouseBuilding"
+
+	local center = base.Position + Vector3.new(0, 0.55, 0)
+	local w = style.Width
+	local half = w / 2
+	local floorHeight = 9
+	local wallColor = style.WallColor
+
+	-- أرضية البيت
+	makePart({ Size = Vector3.new(w, 1, w), Position = center + Vector3.new(0, 0.5, 0), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(170, 130, 90), Parent = house })
+
+	for floor = 1, style.Floors do
+		local yBase = (floor - 1) * floorHeight
+		local yMid = yBase + 5.5
+		-- الجدران الخلفية والجانبية
+		makePart({ Size = Vector3.new(w, floorHeight, 1), Position = center + Vector3.new(0, yMid, -half + 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		makePart({ Size = Vector3.new(1, floorHeight, w), Position = center + Vector3.new(-half + 0.5, yMid, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		makePart({ Size = Vector3.new(1, floorHeight, w), Position = center + Vector3.new(half - 0.5, yMid, 0), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		if floor == 1 then
+			-- الجدار الأمامي مع فتحة باب
+			local sideWidth = (w - 6) / 2
+			makePart({ Size = Vector3.new(sideWidth, floorHeight, 1), Position = center + Vector3.new(-(3 + sideWidth / 2), yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			makePart({ Size = Vector3.new(sideWidth, floorHeight, 1), Position = center + Vector3.new(3 + sideWidth / 2, yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			makePart({ Size = Vector3.new(6, 2.5, 1), Position = center + Vector3.new(0, yBase + floorHeight - 1.25, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+		else
+			-- جدار أمامي كامل للطوابق العليا
+			makePart({ Size = Vector3.new(w, floorHeight, 1), Position = center + Vector3.new(0, yMid, half - 0.5), Material = Enum.Material.Brick, Color = wallColor, Parent = house })
+			-- أرضية الطابق العلوي
+			makePart({ Size = Vector3.new(w - 2, 1, w - 2), Position = center + Vector3.new(0, yBase + 0.5, 0), Material = Enum.Material.WoodPlanks, Color = Color3.fromRGB(160, 120, 80), Parent = house })
+		end
+	end
+
+	-- سقف
+	local roofY = style.Floors * floorHeight + 1.5
+	local roof = makePart({ Size = Vector3.new(w + 2, 1, w + 2), Position = center + Vector3.new(0, roofY, 0), Material = style.RoofMaterial, Color = style.RoofColor, Parent = house })
+
+	-- أعمدة مدخل للقصر
+	if houseLevel &gt;= 3 then
+		makePart({ Size = Vector3.new(1.4, 8, 1.4), Position = center + Vector3.new(-4, 4.5, half + 1.5), Material = Enum.Material.Marble, Color = Color3.fromRGB(240, 238, 230), Parent = house })
+		makePart({ Size = Vector3.new(1.4, 8, 1.4), Position = center + Vector3.new(4, 4.5, half + 1.5), Material = Enum.Material.Marble, Color = Color3.fromRGB(240, 238, 230), Parent = house })
+	end
+
+	local levelName = levelInfo and levelInfo.Name or ("مستوى " .. houseLevel)
+	MapBuilder.makeSign(house, roof, levelName .. "\n" .. ownerName, Color3.fromRGB(255, 210, 120))
+
+	house.Parent = base.Parent
+	return house
+end
+
+-- كشك السوق المركزي بجانب الساحة
+local function buildMarket(root: Folder): ProximityPrompt
+	local market = Instance.new("Model")
+	market.Name = "Market"
+	market.Parent = root
+
+	local floor = makePart({
+		Size = Vector3.new(18, 1, 14),
+		Position = Vector3.new(-34, 0.5, -34),
+		Material = Enum.Material.WoodPlanks,
+		Color = Color3.fromRGB(150, 110, 70),
+		Parent = market,
+	})
+
+	-- أعمدة ومظلة
+	for _, cornerOffset in ipairs({
+		Vector3.new(-8, 5, -6), Vector3.new(8, 5, -6),
+		Vector3.new(-8, 5, 6), Vector3.new(8, 5, 6),
+	}) do
+		makePart({ Size = Vector3.new(1, 9, 1), Position = floor.Position + cornerOffset, Material = Enum.Material.Wood, Color = Color3.fromRGB(110, 80, 50), Parent = market })
+	end
+	makePart({ Size = Vector3.new(20, 1, 16), Position = floor.Position + Vector3.new(0, 10, 0), Material = Enum.Material.Fabric, Color = Color3.fromRGB(200, 80, 70), Parent = market })
+
+	local counter = makePart({
+		Name = "MarketCounter",
+		Size = Vector3.new(9, 3.5, 2.5),
+		Position = floor.Position + Vector3.new(0, 2.25, 5),
+		Material = Enum.Material.Wood,
+		Color = Color3.fromRGB(120, 85, 55),
+		Parent = market,
+	})
+	MapBuilder.makeSign(market, counter, "🛒 السوق المركزي\nبيع وشراء بين اللاعبين", Color3.fromRGB(255, 180, 150))
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "MarketPrompt"
+	prompt.ActionText = "فتح السوق"
+	prompt.ObjectText = "السوق المركزي"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = counter
+
+	return prompt
+end
+
+function MapBuilder.build()
+	local root = Instance.new("Folder")
+	root.Name = "FAMMap"
+	root.Parent = workspace
+
+	-- الأرضية الرئيسية
+	makePart({
+		Name = "Ground",
+		Size = Vector3.new(520, 2, 520),
+		Position = Vector3.new(0, -1, 0),
+		Material = Enum.Material.Grass,
+		Color = Color3.fromRGB(96, 160, 84),
+		Parent = root,
+	})
+
+	-- ساحة السباون
+	makePart({
+		Name = "Plaza",
+		Size = Vector3.new(40, 0.4, 40),
+		Position = Vector3.new(0, 0.2, 0),
+		Material = Enum.Material.Cobblestone,
+		Color = Color3.fromRGB(175, 165, 150),
+		Parent = root,
+	})
+
+	local spawnLocation = Instance.new("SpawnLocation")
+	spawnLocation.Size = Vector3.new(8, 1, 8)
+	spawnLocation.Position = Vector3.new(0, 0.9, 0)
+	spawnLocation.Anchored = true
+	spawnLocation.Neutral = true
+	spawnLocation.Material = Enum.Material.Neon
+	spawnLocation.Color = Color3.fromRGB(120, 220, 160)
+	spawnLocation.TopSurface = Enum.SurfaceType.Smooth
+	spawnLocation.Parent = root
+
+	-- طرق تربط الساحة بالمناطق
+	local roadColor = Color3.fromRGB(120, 115, 110)
+	makePart({ Size = Vector3.new(200, 0.35, 10), Position = Vector3.new(-110, 0.2, 0), Material = Enum.Material.Asphalt, Color = roadColor, Parent = root }) -- إلى المزارع
+	makePart({ Size = Vector3.new(10, 0.35, 110), Position = Vector3.new(0, 0.2, 65), Material = Enum.Material.Asphalt, Color = roadColor, Parent = root })  -- إلى البيوت
+	makePart({ Size = Vector3.new(10, 0.35, 45), Position = Vector3.new(0, 0.2, -42), Material = Enum.Material.Asphalt, Color = roadColor, Parent = root }) -- إلى المتجر
+	makePart({ Size = Vector3.new(45, 0.35, 10), Position = Vector3.new(42, 0.2, 0), Material = Enum.Material.Asphalt, Color = roadColor, Parent = root })  -- إلى الوظائف
+
+	local shopPrompt = buildShop(root)
+	local jobCenter = buildJobCenter(root)
+	local plots = buildPlots(root)
+	local marketPrompt = buildMarket(root)
+
+	return {
+		Root = root,
+		ShopPrompt = shopPrompt,
+		JobCenter = jobCenter,
+		Plots = plots,
+		MarketPrompt = marketPrompt,
+	}
+end
+
+return MapBuilder
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">SeasonSystem</string><ProtectedString name="Source">--!strict
+-- نظام المواسم: الربيع والصيف والخريف والشتاء
+-- كل موسم يغيّر سرعة نمو المحاصيل، ولون الأرض، ويرفع سعر "محصول الموسم"
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+
+local SeasonSystem = {}
+
+local currentIndex = 1
+local seasonEndsAt = 0
+local seasonChanged: RemoteEvent
+
+function SeasonSystem.getSeason()
+	return GameConfig.Seasons[currentIndex]
+end
+
+function SeasonSystem.getGrowthMultiplier(): number
+	return SeasonSystem.getSeason().GrowthMultiplier
+end
+
+function SeasonSystem.isBonusCrop(cropName: string): boolean
+	return SeasonSystem.getSeason().BonusCrop == cropName
+end
+
+local function seasonPayload()
+	local season = SeasonSystem.getSeason()
+	local bonusCrop = GameConfig.Crops[season.BonusCrop]
+	return {
+		Id = season.Id,
+		DisplayName = season.DisplayName,
+		SecondsLeft = math.max(0, seasonEndsAt - os.clock()),
+		BonusCropName = bonusCrop and bonusCrop.DisplayName or "",
+		GrowthMultiplier = season.GrowthMultiplier,
+	}
+end
+
+local function applyVisuals()
+	local season = SeasonSystem.getSeason()
+
+	-- تلوين أرضية الماب حسب الموسم
+	local map = workspace:FindFirstChild("FAMMap")
+	local ground = map and map:FindFirstChild("Ground")
+	if ground and ground:IsA("BasePart") then
+		TweenService:Create(ground, TweenInfo.new(3), { Color = season.GroundColor }):Play()
+	end
+
+	-- إضاءة الشتاء أبرد قليلًا
+	if season.Id == "Winter" then
+		Lighting.OutdoorAmbient = Color3.fromRGB(150, 160, 180)
+	else
+		Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+	end
+end
+
+function SeasonSystem.init(remotes: Folder)
+	seasonChanged = Instance.new("RemoteEvent")
+	seasonChanged.Name = "SeasonChanged"
+	seasonChanged.Parent = remotes
+
+	-- إرسال الموسم الحالي لأي لاعب جديد
+	Players.PlayerAdded:Connect(function(player)
+		seasonChanged:FireClient(player, seasonPayload())
+	end)
+
+	task.spawn(function()
+		while true do
+			seasonEndsAt = os.clock() + GameConfig.SeasonLength
+			applyVisuals()
+			seasonChanged:FireAllClients(seasonPayload())
+			task.wait(GameConfig.SeasonLength)
+			currentIndex = (currentIndex % #GameConfig.Seasons) + 1
+		end
+	end)
+end
+
+return SeasonSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">FarmingSystem</string><ProtectedString name="Source">--!strict
+-- نظام الزراعة: التربة، الزراعة، النمو، السقي، السماد، والحصاد
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
+
+local FarmingSystem = {}
+
+-- حالة كل قطعة تربة
+-- soils[soilPart] = {
+--   ownerUserId, state ("Empty"|"Growing"|"Ready"),
+--   crop, endTime, totalTime, watered, plantPart, prompt, waterPrompt
+-- }
+local soils: { [BasePart]: any } = {}
+
+local EMPTY_COLOR = Color3.fromRGB(110, 80, 55)
+
+local function setPromptForState(soil: BasePart)
+	local state = soils[soil]
+	if not state then
+		return
+	end
+	local prompt: ProximityPrompt = state.prompt
+	local waterPrompt: ProximityPrompt = state.waterPrompt
+
+	if state.state == "Empty" then
+		prompt.ActionText = "ازرع البذرة المحددة"
+		prompt.ObjectText = "تربة فارغة"
+		prompt.Enabled = true
+		waterPrompt.Enabled = false
+	elseif state.state == "Growing" then
+		prompt.Enabled = false
+		waterPrompt.Enabled = true
+	elseif state.state == "Ready" then
+		prompt.ActionText = "احصد 🌾"
+		prompt.ObjectText = GameConfig.Crops[state.crop].DisplayName
+		prompt.Enabled = true
+		waterPrompt.Enabled = false
+	end
+end
+
+local function clearPlant(soil: BasePart)
+	local state = soils[soil]
+	if state.plantPart then
+		state.plantPart:Destroy()
+		state.plantPart = nil
+	end
+	state.state = "Empty"
+	state.crop = nil
+	state.watered = false
+	soil.Color = EMPTY_COLOR
+	setPromptForState(soil)
+end
+
+local function updatePlantVisual(soil: BasePart)
+	local state = soils[soil]
+	if not state or state.state == "Empty" then
+		return
+	end
+
+	local cropInfo = GameConfig.Crops[state.crop]
+	local progress = 1 - math.max(0, state.endTime - os.clock()) / state.totalTime
+	progress = math.clamp(progress, 0.08, 1)
+
+	if not state.plantPart then
+		local plant = Instance.new("Part")
+		plant.Anchored = true
+		plant.CanCollide = false
+		plant.Material = Enum.Material.Grass
+		plant.Parent = soil.Parent
+		state.plantPart = plant
+	end
+
+	local plant: Part = state.plantPart
+	local maxHeight = 3.2
+	local height = maxHeight * progress
+	plant.Size = Vector3.new(1.4 * progress + 0.4, height, 1.4 * progress + 0.4)
+	plant.Position = soil.Position + Vector3.new(0, soil.Size.Y / 2 + height / 2, 0)
+
+	if state.state == "Ready" then
+		plant.Color = cropInfo.Color
+		plant.Material = Enum.Material.Neon
+	else
+		plant.Color = Color3.fromRGB(70, 140, 60)
+		plant.Material = Enum.Material.Grass
+	end
+end
+
+local function plantSeed(player: Player, soil: BasePart)
+	local state = soils[soil]
+	if not state or state.state ~= "Empty" then
+		return
+	end
+	if state.ownerUserId ~= player.UserId then
+		DataManager.notify(player, "هذه ليست مزرعتك!", true)
+		return
+	end
+
+	local session = DataManager.getSession(player)
+	local seedName = session and session.selectedSeed
+	if not seedName or not GameConfig.Crops[seedName] then
+		DataManager.notify(player, "اختر بذرة من الحقيبة أولًا 🎒", true)
+		return
+	end
+	if not DataManager.tryRemoveItem(player, "Seeds", seedName, 1) then
+		DataManager.notify(player, "لا تملك بذور " .. GameConfig.Crops[seedName].DisplayName, true)
+		return
+	end
+
+	-- الموسم يؤثر على سرعة النمو (الربيع أسرع، الشتاء أبطأ)
+	local growTime = math.max(3, math.floor(GameConfig.Crops[seedName].GrowTime / SeasonSystem.getGrowthMultiplier()))
+	state.state = "Growing"
+	state.crop = seedName
+	state.totalTime = growTime
+	state.endTime = os.clock() + growTime
+	state.watered = false
+	soil.Color = Color3.fromRGB(80, 58, 40) -- تربة مزروعة أغمق
+	setPromptForState(soil)
+	updatePlantVisual(soil)
+	DataManager.notify(player, "زرعت " .. GameConfig.Crops[seedName].DisplayName .. " 🌱")
+end
+
+local function waterPlant(player: Player, soil: BasePart)
+	local state = soils[soil]
+	if not state or state.state ~= "Growing" then
+		return
+	end
+	if state.ownerUserId ~= player.UserId then
+		DataManager.notify(player, "هذه ليست مزرعتك!", true)
+		return
+	end
+
+	-- السماد أولوية إن وُجد، وإلا رشاش الماء
+	if DataManager.getItemCount(player, "Tools", "Fertilizer") &gt; 0 then
+		DataManager.tryRemoveItem(player, "Tools", "Fertilizer", 1)
+		local remaining = math.max(0, state.endTime - os.clock())
+		state.endTime = os.clock() + remaining * 0.25
+		DataManager.notify(player, "استخدمت السماد! النمو تسارع 💩⚡")
+	elseif DataManager.getItemCount(player, "Tools", "WateringCan") &gt; 0 then
+		if state.watered then
+			DataManager.notify(player, "هذه النبتة مسقية بالفعل 💧", true)
+			return
+		end
+		state.watered = true
+		local remaining = math.max(0, state.endTime - os.clock())
+		state.endTime = os.clock() + remaining * 0.5
+		DataManager.notify(player, "سقيت النبتة! وقت النمو انخفض للنصف 🚿")
+	else
+		DataManager.notify(player, "تحتاج رشاش ماء أو سماد من المتجر", true)
+	end
+end
+
+local function harvest(player: Player, soil: BasePart)
+	local state = soils[soil]
+	if not state or state.state ~= "Ready" then
+		return
+	end
+	if state.ownerUserId ~= player.UserId then
+		DataManager.notify(player, "هذه ليست مزرعتك!", true)
+		return
+	end
+
+	local cropName = state.crop
+	local amount = math.random(1, 2)
+	if DataManager.getItemCount(player, "Tools", "GoldenScythe") &gt; 0 then
+		amount *= 2
+	end
+
+	DataManager.addItem(player, "Crops", cropName, amount)
+	DataManager.notify(player, "حصدت " .. amount .. "x " .. GameConfig.Crops[cropName].DisplayName .. " ✅")
+	clearPlant(soil)
+end
+
+-- إنشاء قطع التربة داخل أرض مزرعة تم شراؤها
+function FarmingSystem.setupFarm(base: BasePart, ownerUserId: number)
+	local rows = GameConfig.FarmPlot.SoilRows
+	local cols = GameConfig.FarmPlot.SoilCols
+	local size = GameConfig.FarmPlot.Size
+	local patch = 6 -- حجم قطعة التربة
+
+	local spacingX = size / cols
+	local spacingZ = size / rows
+
+	for r = 1, rows do
+		for c = 1, cols do
+			local soil = Instance.new("Part")
+			soil.Name = "Soil"
+			soil.Anchored = true
+			soil.Size = Vector3.new(patch, 0.6, patch)
+			soil.Position = base.Position + Vector3.new(
+				-size / 2 + spacingX * (c - 0.5),
+				base.Size.Y / 2 + 0.3,
+				-size / 2 + spacingZ * (r - 0.5)
+			)
+			soil.Material = Enum.Material.Mud
+			soil.Color = EMPTY_COLOR
+			soil.Parent = base.Parent
+
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.HoldDuration = 0.3
+			prompt.MaxActivationDistance = 8
+			prompt.RequiresLineOfSight = false
+			prompt.Parent = soil
+
+			local waterPrompt = Instance.new("ProximityPrompt")
+			waterPrompt.ActionText = "اسقِ / سمّد"
+			waterPrompt.ObjectText = "نبتة تنمو"
+			waterPrompt.KeyboardKeyCode = Enum.KeyCode.F
+			waterPrompt.HoldDuration = 0.3
+			waterPrompt.MaxActivationDistance = 8
+			waterPrompt.RequiresLineOfSight = false
+			waterPrompt.Enabled = false
+			waterPrompt.Parent = soil
+
+			soils[soil] = {
+				ownerUserId = ownerUserId,
+				state = "Empty",
+				prompt = prompt,
+				waterPrompt = waterPrompt,
+			}
+			setPromptForState(soil)
+
+			prompt.Triggered:Connect(function(player)
+				local state = soils[soil]
+				if not state then
+					return
+				end
+				if state.state == "Empty" then
+					plantSeed(player, soil)
+				elseif state.state == "Ready" then
+					harvest(player, soil)
+				end
+			end)
+
+			waterPrompt.Triggered:Connect(function(player)
+				waterPlant(player, soil)
+			end)
+		end
+	end
+end
+
+function FarmingSystem.init(remotes: Folder)
+	-- استقبال اختيار البذرة من واجهة اللاعب
+	local selectSeed = Instance.new("RemoteEvent")
+	selectSeed.Name = "SelectSeed"
+	selectSeed.Parent = remotes
+	selectSeed.OnServerEvent:Connect(function(player, seedName)
+		if typeof(seedName) ~= "string" or not GameConfig.Crops[seedName] then
+			return
+		end
+		local session = DataManager.getSession(player)
+		if session then
+			session.selectedSeed = seedName
+			DataManager.pushUpdate(player)
+			DataManager.notify(player, "تم اختيار بذور " .. GameConfig.Crops[seedName].DisplayName)
+		end
+	end)
+
+	-- حلقة تحديث النمو
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for soil, state in pairs(soils) do
+				if not soil.Parent then
+					soils[soil] = nil
+				elseif state.state == "Growing" then
+					if os.clock() &gt;= state.endTime then
+						state.state = "Ready"
+						setPromptForState(soil)
+					end
+					updatePlantVisual(soil)
+				end
+			end
+		end
+	end)
+end
+
+return FarmingSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">AnimalSystem</string><ProtectedString name="Source">--!strict
+-- نظام حيوانات المزرعة: شراء الحيوانات، وضعها حول مزرعتك، وجمع منتجاتها
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+
+local AnimalSystem = {}
+
+-- مزرعة كل لاعب في هذا السيرفر: farms[player] = base
+local farms: { [Player]: BasePart } = {}
+-- الحيوانات الحية: spawned[player] = { {Model, Type, ReadyAt, Prompt, Sign} }
+local spawned: { [Player]: { any } } = {}
+
+local function slotPosition(base: BasePart, slot: number): Vector3
+	-- الحيوانات تقف على العشب حول الأرض (8 مواقع: الجهات الأربع + الزوايا)
+	local distance = base.Size.X / 2 + 3.5
+	local offsets = {
+		Vector3.new(0, 0, -distance),
+		Vector3.new(0, 0, distance),
+		Vector3.new(-distance, 0, 0),
+		Vector3.new(distance, 0, 0),
+		Vector3.new(-distance, 0, -distance),
+		Vector3.new(distance, 0, -distance),
+		Vector3.new(-distance, 0, distance),
+		Vector3.new(distance, 0, distance),
+	}
+	local offset = offsets[((slot - 1) % 8) + 1]
+	return Vector3.new(base.Position.X + offset.X, 0, base.Position.Z + offset.Z)
+end
+
+local function spawnAnimal(player: Player, animalType: string, slot: number)
+	local base = farms[player]
+	local info = GameConfig.Animals[animalType]
+	if not base or not info then
+		return
+	end
+
+	local groundPos = slotPosition(base, slot)
+	local productInfo = GameConfig.AnimalProducts[info.Product]
+
+	local model = Instance.new("Model")
+	model.Name = animalType
+
+	local body = Instance.new("Part")
+	body.Name = "Body"
+	body.Anchored = true
+	body.Size = info.BodySize
+	body.Position = groundPos + Vector3.new(0, info.BodySize.Y / 2 + 0.6, 0)
+	body.Color = info.BodyColor
+	-- الحيوانات المميزة تلمع ✨
+	body.Material = info.Premium and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	body.Parent = model
+
+	local headSize = info.BodySize * 0.45
+	local head = Instance.new("Part")
+	head.Name = "Head"
+	head.Anchored = true
+	head.Size = headSize
+	head.Position = body.Position + Vector3.new(0, info.BodySize.Y * 0.45, -(info.BodySize.Z / 2 + headSize.Z / 4))
+	head.Color = info.HeadColor
+	head.Material = Enum.Material.SmoothPlastic
+	head.Parent = model
+
+	-- أرجل بسيطة
+	for _, legOffset in ipairs({
+		Vector3.new(-info.BodySize.X / 2 + 0.3, 0, -info.BodySize.Z / 2 + 0.3),
+		Vector3.new(info.BodySize.X / 2 - 0.3, 0, -info.BodySize.Z / 2 + 0.3),
+		Vector3.new(-info.BodySize.X / 2 + 0.3, 0, info.BodySize.Z / 2 - 0.3),
+		Vector3.new(info.BodySize.X / 2 - 0.3, 0, info.BodySize.Z / 2 - 0.3),
+	}) do
+		local leg = Instance.new("Part")
+		leg.Anchored = true
+		leg.Size = Vector3.new(0.5, 0.6, 0.5)
+		leg.Position = groundPos + legOffset + Vector3.new(0, 0.3, 0)
+		leg.Color = info.HeadColor
+		leg.Material = Enum.Material.SmoothPlastic
+		leg.Parent = model
+	end
+
+	local sign = MapBuilder.makeSign(model, body, info.DisplayName)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "اجمع " .. (productInfo and productInfo.DisplayName or "المنتج")
+	prompt.ObjectText = info.DisplayName
+	prompt.HoldDuration = 0.5
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
+	prompt.Parent = body
+
+	model.Parent = base.Parent
+
+	local entry = {
+		Model = model,
+		Type = animalType,
+		ReadyAt = os.clock() + info.ProduceTime,
+		Prompt = prompt,
+		Sign = sign,
+	}
+	spawned[player] = spawned[player] or {}
+	table.insert(spawned[player], entry)
+
+	prompt.Triggered:Connect(function(collector)
+		if collector ~= player then
+			DataManager.notify(collector, "هذا ليس حيوانك!", true)
+			return
+		end
+		if os.clock() &lt; entry.ReadyAt then
+			return
+		end
+		entry.ReadyAt = os.clock() + info.ProduceTime
+		prompt.Enabled = false
+		DataManager.addItem(player, "Products", info.Product, 1)
+		DataManager.notify(player, "جمعت " .. (productInfo and productInfo.DisplayName or info.Product) .. " ✅")
+	end)
+end
+
+local function despawnAll(player: Player)
+	local animals = spawned[player]
+	if animals then
+		for _, entry in ipairs(animals) do
+			entry.Model:Destroy()
+		end
+	end
+	spawned[player] = nil
+end
+
+-- يستدعيها PlotManager عند شراء/استعادة مزرعة: تسجيل الأرض وإحياء الحيوانات المحفوظة
+function AnimalSystem.registerFarm(player: Player, base: BasePart)
+	farms[player] = base
+	despawnAll(player)
+	local data = DataManager.getData(player)
+	if data then
+		for slot, animalType in ipairs(data.Animals) do
+			spawnAnimal(player, animalType, slot)
+		end
+	end
+end
+
+-- يستدعيها ShopSystem عند شراء حيوان عادي بالعملات
+function AnimalSystem.buyAnimal(player: Player, animalType: string)
+	local info = GameConfig.Animals[animalType]
+	if not info then
+		return
+	end
+	if info.Premium then
+		DataManager.notify(player, "هذا حيوان مميز ✨ — يُشترى بالروبلوكس من قسم 💎 في المتجر", true)
+		return
+	end
+	if not farms[player] then
+		DataManager.notify(player, "اشترِ مزرعة أولًا لتربية الحيوانات! 🌾", true)
+		return
+	end
+	local data = DataManager.getData(player)
+	if not data then
+		return
+	end
+	-- الحد يُحسب على الحيوانات العادية فقط (المميزة لها حد إجمالي أعلى)
+	local regularCount = 0
+	for _, ownedType in ipairs(data.Animals) do
+		local ownedInfo = GameConfig.Animals[ownedType]
+		if ownedInfo and not ownedInfo.Premium then
+			regularCount += 1
+		end
+	end
+	if regularCount &gt;= GameConfig.MaxAnimalsPerFarm then
+		DataManager.notify(player, "وصلت لحد الحيوانات العادية (" .. GameConfig.MaxAnimalsPerFarm .. ")", true)
+		return
+	end
+	if #data.Animals &gt;= GameConfig.MaxAnimalsTotal then
+		DataManager.notify(player, "مزرعتك ممتلئة! (الحد الأقصى " .. GameConfig.MaxAnimalsTotal .. " حيوانات)", true)
+		return
+	end
+	if not DataManager.trySpend(player, info.Price) then
+		DataManager.notify(player, "لا تملك مالًا كافيًا 💸", true)
+		return
+	end
+	table.insert(data.Animals, animalType)
+	spawnAnimal(player, animalType, #data.Animals)
+	DataManager.pushUpdate(player)
+	DataManager.notify(player, "اشتريت " .. info.DisplayName .. " — ستنتج قريبًا!")
+end
+
+-- منح حيوان (مميز عادةً) بعد شراء ناجح بالروبلوكس — يستدعيها MonetizationSystem
+-- ترجع false إذا تعذر المنح الآن (ProcessReceipt سيعيد المحاولة لاحقًا فلا تضيع الأموال)
+function AnimalSystem.grantAnimal(player: Player, animalType: string): boolean
+	local info = GameConfig.Animals[animalType]
+	if not info then
+		return false
+	end
+	local data = DataManager.getData(player)
+	if not data then
+		return false
+	end
+	if #data.Animals &gt;= GameConfig.MaxAnimalsTotal then
+		DataManager.notify(player, "مزرعتك ممتلئة! أفسح مكانًا وسيصلك الحيوان تلقائيًا", true)
+		return false
+	end
+	table.insert(data.Animals, animalType)
+	if farms[player] then
+		spawnAnimal(player, animalType, #data.Animals)
+	else
+		DataManager.notify(player, "سيظهر " .. info.DisplayName .. " فور امتلاكك مزرعة! 🌾")
+	end
+	DataManager.pushUpdate(player)
+	DataManager.notify(player, "حصلت على " .. info.DisplayName .. " — مبروك! ✨")
+	return true
+end
+
+function AnimalSystem.init()
+	-- حلقة تحديث حالة الإنتاج واللافتات
+	task.spawn(function()
+		while true do
+			task.wait(2)
+			for player, animals in pairs(spawned) do
+				for _, entry in ipairs(animals) do
+					local info = GameConfig.Animals[entry.Type]
+					local remaining = entry.ReadyAt - os.clock()
+					if remaining &lt;= 0 then
+						entry.Prompt.Enabled = true
+						entry.Sign.Text = info.DisplayName .. "\n✨ المنتج جاهز للجمع!"
+					else
+						entry.Sign.Text = info.DisplayName .. "\n⏳ " .. math.ceil(remaining) .. " ثانية"
+					end
+				end
+			end
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		despawnAll(player)
+		farms[player] = nil
+	end)
+end
+
+return AnimalSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">PlotManager</string><ProtectedString name="Source">--!strict
+-- إدارة العقارات: شراء أراضي المزارع والبيوت واستعادتها عند العودة للسيرفر
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local FarmingSystem = require(script.Parent:WaitForChild("FarmingSystem"))
+local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
+
+local PlotManager = {}
+
+-- plotStates[plotId] = { Id, Kind, Base, OwnerUserId?, Prompt, SignLabel }
+local plotStates: { [string]: any } = {}
+
+local function priceFor(kind: string): number
+	return kind == "Farm" and GameConfig.FarmPlot.Price or GameConfig.HousePlot.Price
+end
+
+local function labelFor(plot): string
+	local kindName = plot.Kind == "Farm" and "🌾 مزرعة للبيع" or "🏠 بيت للبيع"
+	if plot.OwnerUserId then
+		local owner = Players:GetPlayerByUserId(plot.OwnerUserId)
+		local ownerName = owner and owner.DisplayName or "مالك غائب"
+		return (plot.Kind == "Farm" and "🌾 مزرعة " or "🏠 بيت ") .. ownerName
+	end
+	return kindName .. "\n💰 " .. priceFor(plot.Kind)
+end
+
+local function refreshSign(plot)
+	plot.SignLabel.Text = labelFor(plot)
+	plot.Prompt.Enabled = plot.OwnerUserId == nil
+end
+
+-- لافتة/عمود ترقية البيت أمام الأرض
+local function updateUpgradePrompt(plot, level: number)
+	local nextLevel = GameConfig.HouseLevels[level + 1]
+	if nextLevel then
+		plot.UpgradePrompt.Enabled = true
+		plot.UpgradePrompt.ActionText = "تطوير البيت"
+		plot.UpgradePrompt.ObjectText = nextLevel.Name .. " — 💰 " .. nextLevel.UpgradePrice
+	else
+		plot.UpgradePrompt.Enabled = false
+	end
+end
+
+local function setupUpgradePost(player: Player, plot)
+	if plot.UpgradePost then
+		return
+	end
+	local base: BasePart = plot.Base
+	local post = Instance.new("Part")
+	post.Name = "UpgradePost"
+	post.Anchored = true
+	post.Size = Vector3.new(1.5, 4, 1.5)
+	post.Position = base.Position + Vector3.new(base.Size.X / 2 - 2, 2.5, base.Size.Z / 2 + 2)
+	post.Material = Enum.Material.Wood
+	post.Color = Color3.fromRGB(120, 85, 55)
+	post.Parent = base.Parent
+	MapBuilder.makeSign(post, post, "⬆️ لوحة تطوير البيت")
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.HoldDuration = 1
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = post
+
+	plot.UpgradePost = post
+	plot.UpgradePrompt = prompt
+
+	prompt.Triggered:Connect(function(byPlayer)
+		if byPlayer.UserId ~= plot.OwnerUserId then
+			DataManager.notify(byPlayer, "هذا ليس بيتك!", true)
+			return
+		end
+		local data = DataManager.getData(byPlayer)
+		if not data then
+			return
+		end
+		local nextLevel = data.HouseLevel + 1
+		local nextInfo = GameConfig.HouseLevels[nextLevel]
+		if not nextInfo then
+			return
+		end
+		if not DataManager.trySpend(byPlayer, nextInfo.UpgradePrice) then
+			DataManager.notify(byPlayer, "لا تملك مالًا كافيًا للترقية (السعر: " .. nextInfo.UpgradePrice .. ") 💸", true)
+			return
+		end
+		data.HouseLevel = nextLevel
+		DataManager.pushUpdate(byPlayer)
+		if plot.HouseModel then
+			plot.HouseModel:Destroy()
+		end
+		plot.HouseModel = MapBuilder.buildHouse(plot.Base, byPlayer.DisplayName, nextLevel)
+		updateUpgradePrompt(plot, nextLevel)
+		DataManager.notify(byPlayer, "مبروك! تطور بيتك إلى " .. nextInfo.Name .. " — دخل الإيجار زاد! 🎉")
+	end)
+end
+
+local function giveOwnership(player: Player, plot, announce: boolean)
+	plot.OwnerUserId = player.UserId
+	refreshSign(plot)
+
+	if plot.Kind == "Farm" then
+		plot.Base.Color = Color3.fromRGB(150, 111, 70)
+		FarmingSystem.setupFarm(plot.Base, player.UserId)
+		-- تسجيل المزرعة لنظام الحيوانات (يعيد إحياء الحيوانات المحفوظة)
+		AnimalSystem.registerFarm(player, plot.Base)
+	else
+		local data = DataManager.getData(player)
+		local level = (data and data.HouseLevel) or 1
+		plot.HouseModel = MapBuilder.buildHouse(plot.Base, player.DisplayName, level)
+		setupUpgradePost(player, plot)
+		updateUpgradePrompt(plot, level)
+	end
+
+	if announce then
+		DataManager.notify(player, "مبروك! أصبحت مالك " .. (plot.Kind == "Farm" and "المزرعة" or "البيت") .. " 🎉")
+	end
+end
+
+local function tryPurchase(player: Player, plot)
+	if plot.OwnerUserId then
+		return
+	end
+
+	local data = DataManager.getData(player)
+	if not data then
+		return
+	end
+
+	-- حد أقصى: مزرعة واحدة وبيت واحد لكل لاعب (عدّل حسب رغبتك)
+	local ownedList = plot.Kind == "Farm" and data.OwnedFarms or data.OwnedHouses
+	if #ownedList &gt;= 1 then
+		DataManager.notify(player, "تملك واحدة بالفعل من هذا النوع!", true)
+		return
+	end
+
+	local price = priceFor(plot.Kind)
+	if not DataManager.trySpend(player, price) then
+		DataManager.notify(player, "لا تملك مالًا كافيًا (السعر: " .. price .. ") 💸", true)
+		return
+	end
+
+	table.insert(ownedList, plot.Id)
+	DataManager.pushUpdate(player)
+	giveOwnership(player, plot, true)
+end
+
+-- عند دخول لاعب سبق أن اشترى أرضًا: نعيد له نفس الأرض إن كانت متاحة
+local function reclaimPlots(player: Player)
+	local data = DataManager.getData(player)
+	if not data then
+		return
+	end
+
+	local function reclaimList(list: { string })
+		for index, plotId in ipairs(list) do
+			local plot = plotStates[plotId]
+			if plot and plot.OwnerUserId == nil then
+				giveOwnership(player, plot, false)
+			elseif plot and plot.OwnerUserId ~= player.UserId then
+				-- الأرض محجوزة في هذا السيرفر: نبحث عن بديل شاغر من نفس النوع
+				for _, candidate in pairs(plotStates) do
+					if candidate.Kind == plot.Kind and candidate.OwnerUserId == nil then
+						list[index] = candidate.Id
+						giveOwnership(player, candidate, false)
+						break
+					end
+				end
+			end
+		end
+	end
+
+	reclaimList(data.OwnedFarms)
+	reclaimList(data.OwnedHouses)
+	DataManager.pushUpdate(player)
+end
+
+function PlotManager.init(plots: { any })
+	for _, plotInfo in ipairs(plots) do
+		local base: BasePart = plotInfo.Base
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "شراء"
+		prompt.ObjectText = plotInfo.Kind == "Farm" and "أرض مزرعة" or "أرض بيت"
+		prompt.HoldDuration = 1
+		prompt.MaxActivationDistance = 15
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = base
+
+		local plot = {
+			Id = plotInfo.Id,
+			Kind = plotInfo.Kind,
+			Base = base,
+			OwnerUserId = nil,
+			Prompt = prompt,
+			SignLabel = MapBuilder.makeSign(base, base, ""),
+		}
+		plotStates[plotInfo.Id] = plot
+		refreshSign(plot)
+
+		prompt.Triggered:Connect(function(player)
+			tryPurchase(player, plot)
+		end)
+	end
+
+	-- استعادة الممتلكات بعد تحميل البيانات
+	local function onPlayer(player: Player)
+		task.spawn(function()
+			-- ننتظر تحميل بيانات اللاعب
+			local tries = 0
+			while not DataManager.getData(player) and tries &lt; 50 do
+				task.wait(0.2)
+				tries += 1
+			end
+			if DataManager.getData(player) then
+				reclaimPlots(player)
+			end
+		end)
+	end
+
+	Players.PlayerAdded:Connect(onPlayer)
+	for _, player in ipairs(Players:GetPlayers()) do
+		onPlayer(player)
+	end
+
+	-- دخل الإيجار الدوري لأصحاب البيوت (يزيد مع مستوى البيت)
+	task.spawn(function()
+		while true do
+			task.wait(GameConfig.HouseIncomeInterval)
+			for _, plot in pairs(plotStates) do
+				if plot.Kind == "House" and plot.OwnerUserId then
+					local owner = Players:GetPlayerByUserId(plot.OwnerUserId)
+					if owner then
+						local data = DataManager.getData(owner)
+						local level = (data and data.HouseLevel) or 1
+						local levelInfo = GameConfig.HouseLevels[level]
+						if levelInfo then
+							DataManager.addMoney(owner, levelInfo.Income)
+							DataManager.notify(owner, "🏠 دخل الإيجار: +" .. levelInfo.Income .. " 💰")
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+return PlotManager
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">ShopSystem</string><ProtectedString name="Source">--!strict
+-- نظام المتجر: شراء البذور والأدوات وبيع المحاصيل
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local SeasonSystem = require(script.Parent:WaitForChild("SeasonSystem"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
+
+local ShopSystem = {}
+
+function ShopSystem.init(remotes: Folder, shopPrompt: ProximityPrompt)
+	local openShop = Instance.new("RemoteEvent")
+	openShop.Name = "OpenShop"
+	openShop.Parent = remotes
+
+	local buyItem = Instance.new("RemoteEvent")
+	buyItem.Name = "BuyItem"
+	buyItem.Parent = remotes
+
+	local sellCrop = Instance.new("RemoteEvent")
+	sellCrop.Name = "SellCrop"
+	sellCrop.Parent = remotes
+
+	-- فتح واجهة المتجر عند الاقتراب من الطاولة
+	shopPrompt.Triggered:Connect(function(player)
+		openShop:FireClient(player)
+	end)
+
+	buyItem.OnServerEvent:Connect(function(player, category, itemName)
+		if typeof(category) ~= "string" or typeof(itemName) ~= "string" then
+			return
+		end
+
+		if category == "Seeds" then
+			local crop = GameConfig.Crops[itemName]
+			if not crop then
+				return
+			end
+			if DataManager.trySpend(player, crop.SeedPrice) then
+				DataManager.addItem(player, "Seeds", itemName, 1)
+				DataManager.notify(player, "اشتريت بذور " .. crop.DisplayName)
+			else
+				DataManager.notify(player, "لا تملك مالًا كافيًا 💸", true)
+			end
+		elseif category == "Tools" then
+			local tool = GameConfig.Tools[itemName]
+			if not tool then
+				return
+			end
+			-- الأدوات غير المستهلكة تُشترى مرة واحدة فقط
+			if not tool.Consumable and DataManager.getItemCount(player, "Tools", itemName) &gt; 0 then
+				DataManager.notify(player, "تملك هذه الأداة بالفعل!", true)
+				return
+			end
+			if DataManager.trySpend(player, tool.Price) then
+				DataManager.addItem(player, "Tools", itemName, 1)
+				DataManager.notify(player, "اشتريت " .. tool.DisplayName)
+			else
+				DataManager.notify(player, "لا تملك مالًا كافيًا 💸", true)
+			end
+		elseif category == "Animals" then
+			-- شراء حيوان: يتطلب امتلاك مزرعة، ويُوضع حولها تلقائيًا
+			AnimalSystem.buyAnimal(player, itemName)
+		end
+	end)
+
+	-- بيع المحاصيل ومنتجات الحيوانات (محصول الموسم يُباع بسعر أعلى!)
+	sellCrop.OnServerEvent:Connect(function(player, itemName, amount)
+		if typeof(itemName) ~= "string" then
+			return
+		end
+
+		local category, info, unitPrice
+		local crop = GameConfig.Crops[itemName]
+		local product = GameConfig.AnimalProducts[itemName]
+		if crop then
+			category = "Crops"
+			info = crop
+			unitPrice = crop.SellPrice
+			if SeasonSystem.isBonusCrop(itemName) then
+				unitPrice = math.floor(unitPrice * GameConfig.SeasonBonusMultiplier)
+			end
+		elseif product then
+			category = "Products"
+			info = product
+			unitPrice = product.SellPrice
+		else
+			return
+		end
+
+		local owned = DataManager.getItemCount(player, category, itemName)
+		local toSell
+		if amount == "all" then
+			toSell = owned
+		else
+			toSell = math.floor(tonumber(amount) or 1)
+		end
+		toSell = math.clamp(toSell, 0, owned)
+		if toSell &lt;= 0 then
+			DataManager.notify(player, "لا تملك هذا الغرض للبيع", true)
+			return
+		end
+
+		if DataManager.tryRemoveItem(player, category, itemName, toSell) then
+			local total = toSell * unitPrice
+			DataManager.addMoney(player, total)
+			local bonusText = (crop and SeasonSystem.isBonusCrop(itemName)) and " ⭐ (سعر الموسم!)" or ""
+			DataManager.notify(player, "بعت " .. toSell .. "x " .. info.DisplayName .. " مقابل 💰 " .. total .. bonusText)
+		end
+	end)
+end
+
+return ShopSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">JobSystem</string><ProtectedString name="Source">--!strict
+-- نظام الوظائف: اعمل على منصات الوظائف واكسب المال
+-- وظيفة التوصيل: استلم الطرد من المنصة ووصله لنقطة التسليم
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+
+local JobSystem = {}
+
+-- آخر وقت عمل لكل لاعب لكل وظيفة: cooldowns[player][jobId] = time
+local cooldowns: { [Player]: { [string]: number } } = {}
+-- من يحمل طردًا حاليًا
+local carryingPackage: { [Player]: boolean } = {}
+
+local function onCooldown(player: Player, jobId: string, cooldown: number): number
+	local playerCooldowns = cooldowns[player]
+	if not playerCooldowns then
+		return 0
+	end
+	local last = playerCooldowns[jobId]
+	if not last then
+		return 0
+	end
+	return math.max(0, cooldown - (os.clock() - last))
+end
+
+local function markWorked(player: Player, jobId: string)
+	cooldowns[player] = cooldowns[player] or {}
+	cooldowns[player][jobId] = os.clock()
+end
+
+local function attachPackage(player: Player)
+	local character = player.Character
+	if not character then
+		return
+	end
+	local head = character:FindFirstChild("Head") :: BasePart?
+	if not head then
+		return
+	end
+
+	local package = Instance.new("Part")
+	package.Name = "DeliveryPackage"
+	package.Size = Vector3.new(2, 2, 2)
+	package.Material = Enum.Material.WoodPlanks
+	package.Color = Color3.fromRGB(190, 140, 80)
+	package.CanCollide = false
+	package.Massless = true
+	package.Parent = character
+
+	local weld = Instance.new("Weld")
+	weld.Part0 = head
+	weld.Part1 = package
+	weld.C0 = CFrame.new(0, 2.2, 0)
+	weld.Parent = package
+end
+
+local function removePackage(player: Player)
+	carryingPackage[player] = nil
+	local character = player.Character
+	if character then
+		local package = character:FindFirstChild("DeliveryPackage")
+		if package then
+			package:Destroy()
+		end
+	end
+end
+
+function JobSystem.init(jobCenter: Model)
+	for _, job in ipairs(GameConfig.Jobs) do
+		local pad = jobCenter:FindFirstChild("JobPad_" .. job.Id) :: BasePart?
+		if not pad then
+			continue
+		end
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = job.IsDelivery and "استلام طرد" or "اعمل"
+		prompt.ObjectText = job.DisplayName
+		prompt.HoldDuration = job.Hold
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = pad
+
+		prompt.Triggered:Connect(function(player)
+			local remaining = onCooldown(player, job.Id, job.Cooldown)
+			if remaining &gt; 0 then
+				DataManager.notify(player, "استرح قليلًا! متبقي " .. math.ceil(remaining) .. " ثانية ⏳", true)
+				return
+			end
+
+			if job.IsDelivery then
+				if carryingPackage[player] then
+					DataManager.notify(player, "أنت تحمل طردًا بالفعل! وصله لنقطة التسليم الحمراء 📦", true)
+					return
+				end
+				carryingPackage[player] = true
+				attachPackage(player)
+				DataManager.notify(player, "استلمت الطرد! وصله للنقطة الحمراء 📦➡️")
+			else
+				markWorked(player, job.Id)
+				DataManager.addMoney(player, job.Wage)
+				DataManager.notify(player, "أنهيت مهمة " .. job.DisplayName .. " وكسبت 💰 " .. job.Wage)
+			end
+		end)
+	end
+
+	-- نقطة تسليم الطرود
+	local dropoff = jobCenter:FindFirstChild("DeliveryDropoff") :: BasePart?
+	if dropoff then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.ActionText = "تسليم الطرد"
+		prompt.ObjectText = "نقطة التسليم"
+		prompt.HoldDuration = 1
+		prompt.MaxActivationDistance = 10
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = dropoff
+
+		local deliveryJob
+		for _, job in ipairs(GameConfig.Jobs) do
+			if job.IsDelivery then
+				deliveryJob = job
+				break
+			end
+		end
+
+		prompt.Triggered:Connect(function(player)
+			if not carryingPackage[player] then
+				DataManager.notify(player, "لا تحمل أي طرد! استلم واحدًا من مركز الوظائف", true)
+				return
+			end
+			removePackage(player)
+			if deliveryJob then
+				markWorked(player, deliveryJob.Id)
+				DataManager.addMoney(player, deliveryJob.Wage)
+				DataManager.notify(player, "تم التوصيل بنجاح! كسبت 💰 " .. deliveryJob.Wage)
+			end
+		end)
+	end
+
+	Players.PlayerRemoving:Connect(function(player)
+		cooldowns[player] = nil
+		carryingPackage[player] = nil
+	end)
+
+	-- إسقاط الطرد عند موت الشخصية
+	Players.PlayerAdded:Connect(function(player)
+		player.CharacterRemoving:Connect(function()
+			carryingPackage[player] = nil
+		end)
+	end)
+end
+
+return JobSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">TradeSystem</string><ProtectedString name="Source">--!strict
+-- نظام المقايضة بين اللاعبين
+-- كل لاعب يضيف أغراضًا (بذور/محاصيل/أدوات) ومالًا، وعند موافقة الطرفين يتم التبادل
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+
+local TradeSystem = {}
+
+local tradeEvent: RemoteEvent
+
+-- طلبات معلقة: pendingRequests[targetPlayer] = requesterPlayer
+local pendingRequests: { [Player]: Player } = {}
+
+-- الصفقات النشطة: activeTrades[player] = trade
+-- trade = { players = {p1, p2}, offers = { [player] = { items = { [category] = { [itemName] = count } }, money = 0, ready = false } } }
+local activeTrades: { [Player]: any } = {}
+
+local VALID_CATEGORIES = { Seeds = true, Crops = true, Tools = true, Products = true }
+
+local function partnerOf(trade, player: Player): Player
+	return trade.players[1] == player and trade.players[2] or trade.players[1]
+end
+
+local function serializeOffer(offer)
+	return { items = offer.items, money = offer.money, ready = offer.ready }
+end
+
+-- إرسال حالة الصفقة الحالية للطرفين
+local function broadcastUpdate(trade)
+	for _, player in ipairs(trade.players) do
+		local partner = partnerOf(trade, player)
+		tradeEvent:FireClient(player, "update", {
+			partnerName = partner.DisplayName,
+			mine = serializeOffer(trade.offers[player]),
+			theirs = serializeOffer(trade.offers[partner]),
+		})
+	end
+end
+
+local function closeTrade(trade, reason: string)
+	for _, player in ipairs(trade.players) do
+		activeTrades[player] = nil
+		tradeEvent:FireClient(player, "closed", reason)
+	end
+end
+
+-- التحقق من أن اللاعب يملك فعلًا كل ما عرضه
+local function validateOffer(player: Player, offer): boolean
+	if DataManager.getMoney(player) &lt; offer.money then
+		return false
+	end
+	for category, items in pairs(offer.items) do
+		for itemName, count in pairs(items) do
+			if DataManager.getItemCount(player, category, itemName) &lt; count then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+local function executeTrade(trade)
+	local p1, p2 = trade.players[1], trade.players[2]
+	local offer1, offer2 = trade.offers[p1], trade.offers[p2]
+
+	-- تحقق نهائي قبل التنفيذ (منع الغش/البيع أثناء الصفقة)
+	if not validateOffer(p1, offer1) or not validateOffer(p2, offer2) then
+		closeTrade(trade, "فشلت الصفقة: أحد الطرفين لا يملك ما عرضه!")
+		return
+	end
+
+	local function transfer(from: Player, to: Player, offer)
+		DataManager.addMoney(from, -offer.money)
+		DataManager.addMoney(to, offer.money)
+		for category, items in pairs(offer.items) do
+			for itemName, count in pairs(items) do
+				DataManager.tryRemoveItem(from, category, itemName, count)
+				DataManager.addItem(to, category, itemName, count)
+			end
+		end
+	end
+
+	transfer(p1, p2, offer1)
+	transfer(p2, p1, offer2)
+
+	for _, player in ipairs(trade.players) do
+		activeTrades[player] = nil
+		tradeEvent:FireClient(player, "done")
+		DataManager.notify(player, "تمت الصفقة بنجاح! 🤝")
+	end
+end
+
+local function startTrade(p1: Player, p2: Player)
+	local trade = {
+		players = { p1, p2 },
+		offers = {
+			[p1] = { items = {}, money = 0, ready = false },
+			[p2] = { items = {}, money = 0, ready = false },
+		},
+	}
+	activeTrades[p1] = trade
+	activeTrades[p2] = trade
+	for _, player in ipairs(trade.players) do
+		tradeEvent:FireClient(player, "start", partnerOf(trade, player).DisplayName)
+	end
+	broadcastUpdate(trade)
+end
+
+-- أي تعديل على العرض يلغي حالة "جاهز" للطرفين (حماية من التبديل الخادع)
+local function resetReady(trade)
+	for _, player in ipairs(trade.players) do
+		trade.offers[player].ready = false
+	end
+end
+
+local handlers: { [string]: (Player, ...any) -&gt; () } = {}
+
+-- طلب صفقة من لاعب آخر
+handlers.request = function(player, targetUserId)
+	if activeTrades[player] then
+		return
+	end
+	local target = Players:GetPlayerByUserId(tonumber(targetUserId) or 0)
+	if not target or target == player then
+		return
+	end
+	if activeTrades[target] then
+		DataManager.notify(player, target.DisplayName .. " مشغول بصفقة أخرى", true)
+		return
+	end
+	pendingRequests[target] = player
+	tradeEvent:FireClient(target, "incoming", player.DisplayName, player.UserId)
+	DataManager.notify(player, "أرسلت طلب مقايضة إلى " .. target.DisplayName .. " ⏳")
+end
+
+-- الرد على طلب صفقة
+handlers.respond = function(player, requesterUserId, accepted)
+	local requester = pendingRequests[player]
+	if not requester or requester.UserId ~= tonumber(requesterUserId) then
+		return
+	end
+	pendingRequests[player] = nil
+	if not requester.Parent then
+		return -- الطالب خرج من اللعبة
+	end
+	if accepted == true then
+		if activeTrades[player] or activeTrades[requester] then
+			return
+		end
+		startTrade(requester, player)
+	else
+		DataManager.notify(requester, player.DisplayName .. " رفض طلب المقايضة", true)
+	end
+end
+
+-- إضافة غرض للعرض
+handlers.add = function(player, category, itemName)
+	local trade = activeTrades[player]
+	if not trade then
+		return
+	end
+	if typeof(category) ~= "string" or typeof(itemName) ~= "string" or not VALID_CATEGORIES[category] then
+		return
+	end
+
+	local offer = trade.offers[player]
+	local items = offer.items
+	items[category] = items[category] or {}
+	local newCount = (items[category][itemName] or 0) + 1
+
+	if DataManager.getItemCount(player, category, itemName) &lt; newCount then
+		DataManager.notify(player, "لا تملك المزيد من هذا الغرض", true)
+		return
+	end
+
+	items[category][itemName] = newCount
+	resetReady(trade)
+	broadcastUpdate(trade)
+end
+
+-- إزالة غرض من العرض
+handlers.remove = function(player, category, itemName)
+	local trade = activeTrades[player]
+	if not trade then
+		return
+	end
+	if typeof(category) ~= "string" or typeof(itemName) ~= "string" then
+		return
+	end
+
+	local offer = trade.offers[player]
+	local bucket = offer.items[category]
+	if not bucket or not bucket[itemName] then
+		return
+	end
+	bucket[itemName] -= 1
+	if bucket[itemName] &lt;= 0 then
+		bucket[itemName] = nil
+	end
+	resetReady(trade)
+	broadcastUpdate(trade)
+end
+
+-- تحديد مبلغ المال في العرض
+handlers.money = function(player, amount)
+	local trade = activeTrades[player]
+	if not trade then
+		return
+	end
+	local money = math.floor(tonumber(amount) or 0)
+	money = math.clamp(money, 0, math.min(DataManager.getMoney(player), GameConfig.MaxTradeMoney))
+	trade.offers[player].money = money
+	resetReady(trade)
+	broadcastUpdate(trade)
+end
+
+-- تبديل حالة "جاهز"، وعند جاهزية الطرفين تُنفذ الصفقة
+handlers.ready = function(player, isReady)
+	local trade = activeTrades[player]
+	if not trade then
+		return
+	end
+	trade.offers[player].ready = isReady == true
+
+	local p1, p2 = trade.players[1], trade.players[2]
+	if trade.offers[p1].ready and trade.offers[p2].ready then
+		executeTrade(trade)
+	else
+		broadcastUpdate(trade)
+	end
+end
+
+handlers.cancel = function(player)
+	local trade = activeTrades[player]
+	if trade then
+		closeTrade(trade, "تم إلغاء الصفقة")
+	end
+end
+
+function TradeSystem.init(remotes: Folder)
+	tradeEvent = Instance.new("RemoteEvent")
+	tradeEvent.Name = "TradeEvent"
+	tradeEvent.Parent = remotes
+
+	tradeEvent.OnServerEvent:Connect(function(player, action, ...)
+		local handler = typeof(action) == "string" and handlers[action]
+		if handler then
+			handler(player, ...)
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		pendingRequests[player] = nil
+		for target, requester in pairs(pendingRequests) do
+			if requester == player then
+				pendingRequests[target] = nil
+			end
+		end
+		local trade = activeTrades[player]
+		if trade then
+			closeTrade(trade, "خرج اللاعب الآخر من اللعبة")
+		end
+	end)
+end
+
+return TradeSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">MarketSystem</string><ProtectedString name="Source">--!strict
+-- السوق المركزي: اعرض محاصيلك ومنتجاتك للبيع بسعرك، ويشتريها أي لاعب
+-- الأغراض المعروضة تُحجز من حقيبتك، وتُعاد إليك عند الإلغاء أو الخروج
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+
+local MarketSystem = {}
+
+local marketEvent: RemoteEvent
+
+-- listings[id] = { Id, Seller (Player), SellerName, Category, ItemName, Amount, Price }
+local listings: { [number]: any } = {}
+local nextId = 1
+
+-- الفئات المسموح بيعها في السوق
+local function itemInfo(category: string, itemName: string)
+	if category == "Crops" then
+		return GameConfig.Crops[itemName]
+	elseif category == "Products" then
+		return GameConfig.AnimalProducts[itemName]
+	end
+	return nil
+end
+
+local function serializeListings()
+	local result = {}
+	for _, listing in pairs(listings) do
+		table.insert(result, {
+			Id = listing.Id,
+			SellerName = listing.SellerName,
+			SellerUserId = listing.Seller.UserId,
+			Category = listing.Category,
+			ItemName = listing.ItemName,
+			Amount = listing.Amount,
+			Price = listing.Price,
+		})
+	end
+	table.sort(result, function(a, b)
+		return a.Id &lt; b.Id
+	end)
+	return result
+end
+
+local function broadcast()
+	marketEvent:FireAllClients("update", serializeListings())
+end
+
+local function listingsCountOf(player: Player): number
+	local count = 0
+	for _, listing in pairs(listings) do
+		if listing.Seller == player then
+			count += 1
+		end
+	end
+	return count
+end
+
+-- إرجاع الأغراض المحجوزة للبائع وحذف العرض
+-- (يعمل حتى أثناء خروج البائع — جلسة بياناته ما زالت موجودة قبل الحفظ)
+local function cancelListing(listing, silent: boolean?)
+	listings[listing.Id] = nil
+	DataManager.addItem(listing.Seller, listing.Category, listing.ItemName, listing.Amount)
+	if not silent and listing.Seller.Parent then
+		DataManager.notify(listing.Seller, "أُلغي عرضك وأُعيدت الأغراض لحقيبتك")
+	end
+end
+
+local handlers: { [string]: (Player, ...any) -&gt; () } = {}
+
+-- إنشاء عرض جديد
+handlers.list = function(player, category, itemName, amount, price)
+	if typeof(category) ~= "string" or typeof(itemName) ~= "string" then
+		return
+	end
+	local info = itemInfo(category, itemName)
+	if not info then
+		return
+	end
+
+	local sellAmount = math.floor(tonumber(amount) or 0)
+	local sellPrice = math.floor(tonumber(price) or 0)
+	if sellAmount &lt; 1 or sellPrice &lt; 1 or sellPrice &gt; GameConfig.Market.MaxPrice then
+		DataManager.notify(player, "أدخل كمية وسعرًا صحيحين", true)
+		return
+	end
+	if listingsCountOf(player) &gt;= GameConfig.Market.MaxListingsPerPlayer then
+		DataManager.notify(player, "وصلت للحد الأقصى من العروض (" .. GameConfig.Market.MaxListingsPerPlayer .. ")", true)
+		return
+	end
+	-- حجز الأغراض من الحقيبة
+	if not DataManager.tryRemoveItem(player, category, itemName, sellAmount) then
+		DataManager.notify(player, "لا تملك هذه الكمية!", true)
+		return
+	end
+
+	local listing = {
+		Id = nextId,
+		Seller = player,
+		SellerName = player.DisplayName,
+		Category = category,
+		ItemName = itemName,
+		Amount = sellAmount,
+		Price = sellPrice,
+	}
+	nextId += 1
+	listings[listing.Id] = listing
+	DataManager.notify(player, "عرضت " .. sellAmount .. "x " .. info.DisplayName .. " بسعر 💰 " .. sellPrice)
+	broadcast()
+end
+
+-- إلغاء عرض (للبائع فقط)
+handlers.cancel = function(player, listingId)
+	local listing = listings[tonumber(listingId) or 0]
+	if listing and listing.Seller == player then
+		cancelListing(listing)
+		broadcast()
+	end
+end
+
+-- شراء عرض
+handlers.buy = function(player, listingId)
+	local listing = listings[tonumber(listingId) or 0]
+	if not listing then
+		DataManager.notify(player, "هذا العرض لم يعد متاحًا", true)
+		return
+	end
+	if listing.Seller == player then
+		DataManager.notify(player, "لا يمكنك شراء عرضك! اضغط إلغاء لاسترجاعه", true)
+		return
+	end
+	if not DataManager.trySpend(player, listing.Price) then
+		DataManager.notify(player, "لا تملك مالًا كافيًا (السعر: " .. listing.Price .. ") 💸", true)
+		return
+	end
+
+	listings[listing.Id] = nil
+	DataManager.addItem(player, listing.Category, listing.ItemName, listing.Amount)
+
+	local info = itemInfo(listing.Category, listing.ItemName)
+	local itemDisplay = info and info.DisplayName or listing.ItemName
+	DataManager.notify(player, "اشتريت " .. listing.Amount .. "x " .. itemDisplay .. " من " .. listing.SellerName .. " 🛒")
+
+	if listing.Seller.Parent then
+		DataManager.addMoney(listing.Seller, listing.Price)
+		DataManager.notify(listing.Seller, "بيع عرضك! " .. listing.Amount .. "x " .. itemDisplay .. " مقابل 💰 " .. listing.Price)
+	end
+	broadcast()
+end
+
+handlers.refresh = function(player)
+	marketEvent:FireClient(player, "update", serializeListings())
+end
+
+function MarketSystem.init(remotes: Folder, marketPrompt: ProximityPrompt)
+	marketEvent = Instance.new("RemoteEvent")
+	marketEvent.Name = "MarketEvent"
+	marketEvent.Parent = remotes
+
+	marketPrompt.Triggered:Connect(function(player)
+		marketEvent:FireClient(player, "open", serializeListings())
+	end)
+
+	marketEvent.OnServerEvent:Connect(function(player, action, ...)
+		local handler = typeof(action) == "string" and handlers[action]
+		if handler then
+			handler(player, ...)
+		end
+	end)
+
+	-- عند خروج البائع: تُعاد أغراض عروضه لحقيبته قبل الحفظ النهائي
+	DataManager.onBeforeSave(function(player)
+		local changed = false
+		for _, listing in pairs(listings) do
+			if listing.Seller == player then
+				cancelListing(listing, true)
+				changed = true
+			end
+		end
+		if changed then
+			task.defer(broadcast)
+		end
+	end)
+
+	-- إرسال العروض الحالية للاعبين الجدد
+	Players.PlayerAdded:Connect(function(player)
+		task.delay(3, function()
+			if player.Parent then
+				marketEvent:FireClient(player, "update", serializeListings())
+			end
+		end)
+	end)
+end
+
+return MarketSystem
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX19"><Properties><string name="Name">MonetizationSystem</string><ProtectedString name="Source">--!strict
+-- نظام البيع بالروبلوكس (Developer Products)
+-- حزم العملات + الحيوانات المميزة
+--
+-- ⚠️ الإعداد المطلوب:
+-- 1) افتح creator.roblox.com ← تجربتك ← Monetization ← Developer Products
+-- 2) أنشئ منتجًا لكل حزمة عملات ولكل حيوان مميز وحدد سعره بالروبلوكس
+-- 3) انسخ رقم كل منتج (Product ID) وضعه في GameConfig:
+--    - CoinPacks[n].ProductId
+--    - Animals.GoldenChicken.ProductId وهكذا
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local DataManager = require(script.Parent:WaitForChild("DataManager"))
+local AnimalSystem = require(script.Parent:WaitForChild("AnimalSystem"))
+
+local MonetizationSystem = {}
+
+-- handlers[productId] = دالة المنح، ترجع false إذا يجب إعادة المحاولة لاحقًا
+local handlers: { [number]: (Player) -&gt; boolean } = {}
+
+-- منع تكرار المنح لنفس عملية الشراء في هذه الجلسة
+local processedReceipts: { [string]: boolean } = {}
+
+local function buildHandlers()
+	-- حزم العملات
+	for _, pack in ipairs(GameConfig.CoinPacks) do
+		if pack.ProductId and pack.ProductId &gt; 0 then
+			handlers[pack.ProductId] = function(player)
+				DataManager.addMoney(player, pack.Coins)
+				DataManager.notify(player, "شكرًا لدعمك! حصلت على +" .. pack.Coins .. " 💰")
+				return true
+			end
+		end
+	end
+
+	-- الحيوانات المميزة
+	for animalType, info in pairs(GameConfig.Animals) do
+		if info.Premium and info.ProductId and info.ProductId &gt; 0 then
+			handlers[info.ProductId] = function(player)
+				return AnimalSystem.grantAnimal(player, animalType)
+			end
+		end
+	end
+end
+
+function MonetizationSystem.init()
+	buildHandlers()
+
+	MarketplaceService.ProcessReceipt = function(receiptInfo)
+		-- منع التكرار داخل نفس السيرفر
+		if processedReceipts[receiptInfo.PurchaseId] then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+
+		local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
+		if not player then
+			-- اللاعب خرج: روبلوكس سيعيد المحاولة عند عودته
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		if not DataManager.getData(player) then
+			-- بياناته لم تُحمّل بعد
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
+		local handler = handlers[receiptInfo.ProductId]
+		if not handler then
+			warn("[FAM Farm] منتج غير معروف: " .. receiptInfo.ProductId)
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
+		local ok, granted = pcall(handler, player)
+		if ok and granted == true then
+			processedReceipts[receiptInfo.PurchaseId] = true
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+end
+
+return MonetizationSystem
+</ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX20"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX21"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX22"><Properties><string name="Name">MainUI</string><ProtectedString name="Source">--!strict
+-- واجهة اللاعب الرئيسية: المال، الإشعارات، الحقيبة، والمتجر
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local dataChanged = remotes:WaitForChild("DataChanged") :: RemoteEvent
+local notify = remotes:WaitForChild("Notify") :: RemoteEvent
+local openShop = remotes:WaitForChild("OpenShop") :: RemoteEvent
+local buyItem = remotes:WaitForChild("BuyItem") :: RemoteEvent
+local sellCrop = remotes:WaitForChild("SellCrop") :: RemoteEvent
+local selectSeed = remotes:WaitForChild("SelectSeed") :: RemoteEvent
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- آخر بيانات وصلت من السيرفر
+local currentData: any = nil
+-- معلومات الموسم الحالي (من SeasonChanged)
+local seasonInfo: any = nil
+local seasonEndsAt = 0
+
+-- ================= أدوات بناء الواجهة =================
+
+local function corner(parent: Instance, radius: number?)
+	local ui = Instance.new("UICorner")
+	ui.CornerRadius = UDim.new(0, radius or 10)
+	ui.Parent = parent
+end
+
+local function makeButton(parent: Instance, text: string, color: Color3): TextButton
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(120, 40)
+	button.BackgroundColor3 = color
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.AutoButtonColor = true
+	button.Parent = parent
+	corner(button)
+	return button
+end
+
+local function makePanel(parent: Instance, title: string, size: UDim2): (Frame, Frame)
+	local panel = Instance.new("Frame")
+	panel.Size = size
+	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+	panel.Visible = false
+	panel.Parent = parent
+	corner(panel, 14)
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, -50, 0, 40)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Color3.new(1, 1, 1)
+	titleLabel.TextScaled = true
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.Parent = panel
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.fromOffset(34, 34)
+	closeButton.Position = UDim2.new(1, -40, 0, 4)
+	closeButton.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+	closeButton.Text = "✕"
+	closeButton.TextColor3 = Color3.new(1, 1, 1)
+	closeButton.TextScaled = true
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.Parent = panel
+	corner(closeButton, 8)
+	closeButton.MouseButton1Click:Connect(function()
+		panel.Visible = false
+	end)
+
+	local content = Instance.new("Frame")
+	content.Size = UDim2.new(1, -20, 1, -55)
+	content.Position = UDim2.new(0, 10, 0, 45)
+	content.BackgroundTransparency = 1
+	content.Parent = panel
+
+	return panel, content
+end
+
+local function makeScroll(parent: Instance): ScrollingFrame
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.fromScale(1, 1)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 6
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.Parent = parent
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 6)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = scroll
+
+	return scroll
+end
+
+local function makeRow(parent: Instance, text: string): (Frame, TextLabel)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, -8, 0, 46)
+	row.BackgroundColor3 = Color3.fromRGB(50, 54, 64)
+	row.Parent = parent
+	corner(row)
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -140, 1, 0)
+	label.Position = UDim2.fromOffset(8, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = Enum.Font.Gotham
+	label.Parent = row
+
+	return row, label
+end
+
+-- ================= الواجهة الرئيسية =================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FAMUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- شريط المال
+local moneyFrame = Instance.new("Frame")
+moneyFrame.Size = UDim2.fromOffset(180, 44)
+moneyFrame.Position = UDim2.new(0.5, 0, 0, 8)
+moneyFrame.AnchorPoint = Vector2.new(0.5, 0)
+moneyFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+moneyFrame.Parent = screenGui
+corner(moneyFrame, 12)
+
+local moneyLabel = Instance.new("TextLabel")
+moneyLabel.Size = UDim2.fromScale(1, 1)
+moneyLabel.BackgroundTransparency = 1
+moneyLabel.Text = "💰 0"
+moneyLabel.TextColor3 = Color3.fromRGB(255, 215, 100)
+moneyLabel.TextScaled = true
+moneyLabel.Font = Enum.Font.GothamBold
+moneyLabel.Parent = moneyFrame
+
+-- أزرار جانبية
+local buttonBar = Instance.new("Frame")
+buttonBar.Size = UDim2.fromOffset(130, 150)
+buttonBar.Position = UDim2.new(0, 10, 0.5, -75)
+buttonBar.BackgroundTransparency = 1
+buttonBar.Parent = screenGui
+
+local barLayout = Instance.new("UIListLayout")
+barLayout.Padding = UDim.new(0, 8)
+barLayout.Parent = buttonBar
+
+local inventoryButton = makeButton(buttonBar, "🎒 الحقيبة", Color3.fromRGB(80, 130, 200))
+local shopButton = makeButton(buttonBar, "🏪 المتجر", Color3.fromRGB(90, 170, 100))
+
+-- الإشعارات
+local notifLabel = Instance.new("TextLabel")
+notifLabel.Size = UDim2.new(0, 420, 0, 40)
+notifLabel.Position = UDim2.new(0.5, 0, 0, 60)
+notifLabel.AnchorPoint = Vector2.new(0.5, 0)
+notifLabel.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+notifLabel.BackgroundTransparency = 1
+notifLabel.Text = ""
+notifLabel.TextColor3 = Color3.new(1, 1, 1)
+notifLabel.TextScaled = true
+notifLabel.Font = Enum.Font.GothamBold
+notifLabel.TextTransparency = 1
+notifLabel.Parent = screenGui
+corner(notifLabel, 10)
+
+local notifToken = 0
+notify.OnClientEvent:Connect(function(message: string, isError: boolean)
+	notifToken += 1
+	local myToken = notifToken
+	notifLabel.Text = message
+	notifLabel.TextColor3 = isError and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(160, 255, 170)
+	notifLabel.TextTransparency = 0
+	notifLabel.BackgroundTransparency = 0.25
+	task.delay(3, function()
+		if notifToken == myToken then
+			TweenService:Create(notifLabel, TweenInfo.new(0.6), {
+				TextTransparency = 1,
+				BackgroundTransparency = 1,
+			}):Play()
+		end
+	end)
+end)
+
+-- ================= الحقيبة =================
+
+local inventoryPanel, inventoryContent = makePanel(screenGui, "🎒 الحقيبة", UDim2.fromOffset(420, 460))
+local inventoryScroll = makeScroll(inventoryContent)
+
+local function rebuildInventory()
+	if not currentData then
+		return
+	end
+	for _, child in ipairs(inventoryScroll:GetChildren()) do
+		if child:IsA("Frame") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+
+	local order = 0
+	local function addHeader(text: string)
+		order += 1
+		local header = Instance.new("TextLabel")
+		header.Size = UDim2.new(1, -8, 0, 30)
+		header.BackgroundTransparency = 1
+		header.Text = text
+		header.TextColor3 = Color3.fromRGB(255, 215, 100)
+		header.TextScaled = true
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.Font = Enum.Font.GothamBold
+		header.LayoutOrder = order
+		header.Parent = inventoryScroll
+	end
+
+	-- البذور: اضغط لاختيارها للزراعة
+	addHeader("🌱 البذور (اضغط للاختيار ثم ازرعها في مزرعتك)")
+	local hasSeeds = false
+	for seedName, count in pairs(currentData.Inventory.Seeds) do
+		local crop = GameConfig.Crops[seedName]
+		if crop and count &gt; 0 then
+			hasSeeds = true
+			order += 1
+			local row = makeRow(inventoryScroll, crop.DisplayName .. "  x" .. count)
+			row.LayoutOrder = order
+			local isSelected = currentData.SelectedSeed == seedName
+			local pick = makeButton(row, isSelected and "✅ محددة" or "اختيار", isSelected and Color3.fromRGB(90, 170, 100) or Color3.fromRGB(80, 130, 200))
+			pick.Size = UDim2.fromOffset(110, 34)
+			pick.Position = UDim2.new(1, -118, 0.5, -17)
+			pick.MouseButton1Click:Connect(function()
+				selectSeed:FireServer(seedName)
+			end)
+		end
+	end
+	if not hasSeeds then
+		order += 1
+		local row = makeRow(inventoryScroll, "لا تملك بذورًا — اشترِ من المتجر")
+		row.LayoutOrder = order
+	end
+
+	addHeader("🌾 المحاصيل (بِعها في المتجر أو قايض بها)")
+	for cropName, count in pairs(currentData.Inventory.Crops) do
+		local crop = GameConfig.Crops[cropName]
+		if crop and count &gt; 0 then
+			order += 1
+			local row = makeRow(inventoryScroll, crop.DisplayName .. "  x" .. count)
+			row.LayoutOrder = order
+		end
+	end
+
+	addHeader("🥚 منتجات الحيوانات (بِعها أو قايض بها)")
+	for productName, count in pairs(currentData.Inventory.Products) do
+		local product = GameConfig.AnimalProducts[productName]
+		if product and count &gt; 0 then
+			order += 1
+			local row = makeRow(inventoryScroll, product.DisplayName .. "  x" .. count)
+			row.LayoutOrder = order
+		end
+	end
+
+	addHeader("🐔 حيواناتك (" .. #currentData.Animals .. "/" .. GameConfig.MaxAnimalsTotal .. ")")
+	for _, animalType in ipairs(currentData.Animals) do
+		local animal = GameConfig.Animals[animalType]
+		if animal then
+			order += 1
+			local row = makeRow(inventoryScroll, animal.DisplayName)
+			row.LayoutOrder = order
+		end
+	end
+
+	addHeader("🛠️ الأدوات")
+	for toolName, count in pairs(currentData.Inventory.Tools) do
+		local tool = GameConfig.Tools[toolName]
+		if tool and count &gt; 0 then
+			order += 1
+			local row = makeRow(inventoryScroll, tool.DisplayName .. (tool.Consumable and ("  x" .. count) or ""))
+			row.LayoutOrder = order
+		end
+	end
+end
+
+inventoryButton.MouseButton1Click:Connect(function()
+	inventoryPanel.Visible = not inventoryPanel.Visible
+	if inventoryPanel.Visible then
+		rebuildInventory()
+	end
+end)
+
+-- ================= المتجر =================
+
+local shopPanel, shopContent = makePanel(screenGui, "🏪 المتجر", UDim2.fromOffset(460, 500))
+local shopScroll = makeScroll(shopContent)
+
+local function rebuildShop()
+	for _, child in ipairs(shopScroll:GetChildren()) do
+		if child:IsA("Frame") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+
+	local order = 0
+	local function addHeader(text: string)
+		order += 1
+		local header = Instance.new("TextLabel")
+		header.Size = UDim2.new(1, -8, 0, 30)
+		header.BackgroundTransparency = 1
+		header.Text = text
+		header.TextColor3 = Color3.fromRGB(255, 215, 100)
+		header.TextScaled = true
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.Font = Enum.Font.GothamBold
+		header.LayoutOrder = order
+		header.Parent = shopScroll
+	end
+
+	addHeader("🌱 بذور للبيع")
+	for seedName, crop in pairs(GameConfig.Crops) do
+		order += 1
+		local row = makeRow(shopScroll, crop.DisplayName .. "  💰 " .. crop.SeedPrice)
+		row.LayoutOrder = order
+		local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
+		buy.Size = UDim2.fromOffset(90, 34)
+		buy.Position = UDim2.new(1, -98, 0.5, -17)
+		buy.MouseButton1Click:Connect(function()
+			buyItem:FireServer("Seeds", seedName)
+		end)
+	end
+
+	addHeader("🛠️ أدوات المزرعة")
+	for toolName, tool in pairs(GameConfig.Tools) do
+		order += 1
+		local row = makeRow(shopScroll, tool.DisplayName .. "  💰 " .. tool.Price)
+		row.LayoutOrder = order
+		local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
+		buy.Size = UDim2.fromOffset(90, 34)
+		buy.Position = UDim2.new(1, -98, 0.5, -17)
+		buy.MouseButton1Click:Connect(function()
+			buyItem:FireServer("Tools", toolName)
+		end)
+	end
+
+	addHeader("🐔 حيوانات المزرعة (تحتاج مزرعة!)")
+	for animalName, animal in pairs(GameConfig.Animals) do
+		if not animal.Premium then
+			local product = GameConfig.AnimalProducts[animal.Product]
+			order += 1
+			local row = makeRow(shopScroll, animal.DisplayName .. "  💰 " .. animal.Price .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
+			row.LayoutOrder = order
+			local buy = makeButton(row, "شراء", Color3.fromRGB(90, 170, 100))
+			buy.Size = UDim2.fromOffset(90, 34)
+			buy.Position = UDim2.new(1, -98, 0.5, -17)
+			buy.MouseButton1Click:Connect(function()
+				buyItem:FireServer("Animals", animalName)
+			end)
+		end
+	end
+
+	-- زر شراء بالروبلوكس: يجلب السعر الحقيقي من روبلوكس، أو يظهر تحذيرًا إن لم يُعد المنتج
+	local function addRobuxButton(row: Frame, productId: number)
+		if productId &lt;= 0 then
+			local warnButton = makeButton(row, "⚠️ غير مُعد", Color3.fromRGB(110, 110, 120))
+			warnButton.Size = UDim2.fromOffset(110, 34)
+			warnButton.Position = UDim2.new(1, -118, 0.5, -17)
+			warnButton.MouseButton1Click:Connect(function()
+				notifLabel.Text = "ضع رقم المنتج (ProductId) في GameConfig أولًا"
+				notifLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+				notifLabel.TextTransparency = 0
+				notifLabel.BackgroundTransparency = 0.25
+			end)
+			return
+		end
+		local buy = makeButton(row, "شراء", Color3.fromRGB(70, 190, 120))
+		buy.Size = UDim2.fromOffset(110, 34)
+		buy.Position = UDim2.new(1, -118, 0.5, -17)
+		-- جلب السعر بالروبلوكس لعرضه على الزر
+		task.spawn(function()
+			local ok, productInfo = pcall(function()
+				return MarketplaceService:GetProductInfo(productId, Enum.InfoType.Product)
+			end)
+			if ok and productInfo and buy.Parent then
+				buy.Text = "R$ " .. tostring(productInfo.PriceInRobux or "?")
+			end
+		end)
+		buy.MouseButton1Click:Connect(function()
+			MarketplaceService:PromptProductPurchase(player, productId)
+		end)
+	end
+
+	addHeader("💎 شراء عملات (روبلوكس)")
+	for _, pack in ipairs(GameConfig.CoinPacks) do
+		order += 1
+		local row = makeRow(shopScroll, pack.DisplayName .. "  (+" .. pack.Coins .. " 💰)")
+		row.LayoutOrder = order
+		addRobuxButton(row, pack.ProductId or 0)
+	end
+
+	addHeader("💎 حيوانات مميزة (روبلوكس)")
+	for _, animalName in ipairs({ "GoldenChicken", "Unicorn", "Dragon" }) do
+		local animal = GameConfig.Animals[animalName]
+		if animal and animal.Premium then
+			local product = GameConfig.AnimalProducts[animal.Product]
+			order += 1
+			local row = makeRow(shopScroll, animal.DisplayName .. "  (تنتج " .. (product and product.DisplayName or "") .. ")")
+			row.LayoutOrder = order
+			addRobuxButton(row, animal.ProductId or 0)
+		end
+	end
+
+	addHeader("💵 بيع محاصيلك ومنتجاتك")
+	local hasItems = false
+	if currentData then
+		for cropName, count in pairs(currentData.Inventory.Crops) do
+			local crop = GameConfig.Crops[cropName]
+			if crop and count &gt; 0 then
+				hasItems = true
+				order += 1
+				local isBonus = seasonInfo and GameConfig.Crops[cropName].DisplayName == seasonInfo.BonusCropName
+				local priceText = isBonus and ("⭐ 💰 " .. math.floor(crop.SellPrice * GameConfig.SeasonBonusMultiplier) .. " سعر الموسم!") or ("💰 " .. crop.SellPrice)
+				local row = makeRow(shopScroll, crop.DisplayName .. "  x" .. count .. "  (" .. priceText .. ")")
+				row.LayoutOrder = order
+				local sellAll = makeButton(row, "بيع الكل", Color3.fromRGB(220, 150, 60))
+				sellAll.Size = UDim2.fromOffset(100, 34)
+				sellAll.Position = UDim2.new(1, -108, 0.5, -17)
+				sellAll.MouseButton1Click:Connect(function()
+					sellCrop:FireServer(cropName, "all")
+				end)
+			end
+		end
+		for productName, count in pairs(currentData.Inventory.Products) do
+			local product = GameConfig.AnimalProducts[productName]
+			if product and count &gt; 0 then
+				hasItems = true
+				order += 1
+				local row = makeRow(shopScroll, product.DisplayName .. "  x" .. count .. "  (💰 " .. product.SellPrice .. " للواحدة)")
+				row.LayoutOrder = order
+				local sellAll = makeButton(row, "بيع الكل", Color3.fromRGB(220, 150, 60))
+				sellAll.Size = UDim2.fromOffset(100, 34)
+				sellAll.Position = UDim2.new(1, -108, 0.5, -17)
+				sellAll.MouseButton1Click:Connect(function()
+					sellCrop:FireServer(productName, "all")
+				end)
+			end
+		end
+	end
+	if not hasItems then
+		order += 1
+		local row = makeRow(shopScroll, "لا تملك ما تبيعه — ازرع واحصد أولًا!")
+		row.LayoutOrder = order
+	end
+end
+
+local function showShop()
+	shopPanel.Visible = true
+	rebuildShop()
+end
+
+shopButton.MouseButton1Click:Connect(showShop)
+openShop.OnClientEvent:Connect(showShop)
+
+-- ================= تحديث البيانات =================
+
+dataChanged.OnClientEvent:Connect(function(data)
+	currentData = data
+	moneyLabel.Text = "💰 " .. tostring(data.Money)
+	if inventoryPanel.Visible then
+		rebuildInventory()
+	end
+	if shopPanel.Visible then
+		rebuildShop()
+	end
+end)
+
+-- ================= لوحة الموسم =================
+
+local seasonFrame = Instance.new("Frame")
+seasonFrame.Size = UDim2.fromOffset(210, 64)
+seasonFrame.Position = UDim2.new(1, -220, 0, 8)
+seasonFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+seasonFrame.Parent = screenGui
+corner(seasonFrame, 12)
+
+local seasonLabel = Instance.new("TextLabel")
+seasonLabel.Size = UDim2.new(1, -10, 0.55, 0)
+seasonLabel.Position = UDim2.fromOffset(5, 2)
+seasonLabel.BackgroundTransparency = 1
+seasonLabel.Text = "..."
+seasonLabel.TextColor3 = Color3.new(1, 1, 1)
+seasonLabel.TextScaled = true
+seasonLabel.Font = Enum.Font.GothamBold
+seasonLabel.Parent = seasonFrame
+
+local seasonBonusLabel = Instance.new("TextLabel")
+seasonBonusLabel.Size = UDim2.new(1, -10, 0.4, 0)
+seasonBonusLabel.Position = UDim2.new(0, 5, 0.55, 0)
+seasonBonusLabel.BackgroundTransparency = 1
+seasonBonusLabel.Text = ""
+seasonBonusLabel.TextColor3 = Color3.fromRGB(255, 215, 100)
+seasonBonusLabel.TextScaled = true
+seasonBonusLabel.Font = Enum.Font.Gotham
+seasonBonusLabel.Parent = seasonFrame
+
+local seasonChanged = remotes:WaitForChild("SeasonChanged") :: RemoteEvent
+seasonChanged.OnClientEvent:Connect(function(payload)
+	seasonInfo = payload
+	seasonEndsAt = os.clock() + payload.SecondsLeft
+	seasonBonusLabel.Text = payload.BonusCropName ~= "" and ("⭐ محصول الموسم: " .. payload.BonusCropName) or ""
+	if shopPanel.Visible then
+		rebuildShop()
+	end
+end)
+
+-- عدّاد الوقت المتبقي للموسم
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if seasonInfo then
+			local remaining = math.max(0, seasonEndsAt - os.clock())
+			local minutes = math.floor(remaining / 60)
+			local seconds = math.floor(remaining % 60)
+			seasonLabel.Text = seasonInfo.DisplayName .. "  " .. string.format("%d:%02d", minutes, seconds)
+		end
+	end
+end)
+
+-- طلب البيانات الأولية (قد تكون وصلت قبل تشغيل هذا السكربت)
+local requestData = remotes:WaitForChild("RequestData") :: RemoteEvent
+requestData:FireServer()
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX23"><Properties><string name="Name">TradeUI</string><ProtectedString name="Source">--!strict
+-- واجهة المقايضة: اختيار لاعب، طلب صفقة، نافذة التبادل
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local tradeEvent = remotes:WaitForChild("TradeEvent") :: RemoteEvent
+local dataChanged = remotes:WaitForChild("DataChanged") :: RemoteEvent
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local currentData: any = nil
+dataChanged.OnClientEvent:Connect(function(data)
+	currentData = data
+end)
+
+local function displayNameOf(category: string, itemName: string): string
+	if category == "Crops" or category == "Seeds" then
+		local crop = GameConfig.Crops[itemName]
+		local base = crop and crop.DisplayName or itemName
+		return category == "Seeds" and ("بذور " .. base) or base
+	elseif category == "Products" then
+		local product = GameConfig.AnimalProducts[itemName]
+		return product and product.DisplayName or itemName
+	end
+	local tool = GameConfig.Tools[itemName]
+	return tool and tool.DisplayName or itemName
+end
+
+-- ================= أدوات واجهة =================
+
+local function corner(parent: Instance, radius: number?)
+	local ui = Instance.new("UICorner")
+	ui.CornerRadius = UDim.new(0, radius or 10)
+	ui.Parent = parent
+end
+
+local function makeButton(parent: Instance, text: string, color: Color3): TextButton
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(120, 40)
+	button.BackgroundColor3 = color
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Parent = parent
+	corner(button)
+	return button
+end
+
+local function makeScrollList(parent: Instance): ScrollingFrame
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.fromScale(1, 1)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 6
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.Parent = parent
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 5)
+	layout.Parent = scroll
+	return scroll
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FAMTradeUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- زر فتح قائمة اللاعبين (تحت أزرار الواجهة الرئيسية)
+local tradeButton = makeButton(screenGui, "🤝 مقايضة", Color3.fromRGB(190, 120, 220))
+tradeButton.Position = UDim2.new(0, 10, 0.5, 75)
+
+-- ================= قائمة اللاعبين =================
+
+local playerListFrame = Instance.new("Frame")
+playerListFrame.Size = UDim2.fromOffset(300, 340)
+playerListFrame.Position = UDim2.new(0, 145, 0.5, -170)
+playerListFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+playerListFrame.Visible = false
+playerListFrame.Parent = screenGui
+corner(playerListFrame, 14)
+
+local playerListTitle = Instance.new("TextLabel")
+playerListTitle.Size = UDim2.new(1, 0, 0, 36)
+playerListTitle.BackgroundTransparency = 1
+playerListTitle.Text = "اختر لاعبًا للمقايضة"
+playerListTitle.TextColor3 = Color3.new(1, 1, 1)
+playerListTitle.TextScaled = true
+playerListTitle.Font = Enum.Font.GothamBold
+playerListTitle.Parent = playerListFrame
+
+local playerListContent = Instance.new("Frame")
+playerListContent.Size = UDim2.new(1, -16, 1, -46)
+playerListContent.Position = UDim2.new(0, 8, 0, 40)
+playerListContent.BackgroundTransparency = 1
+playerListContent.Parent = playerListFrame
+local playerListScroll = makeScrollList(playerListContent)
+
+local function rebuildPlayerList()
+	for _, child in ipairs(playerListScroll:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+	local anyone = false
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			anyone = true
+			local entry = makeButton(playerListScroll, "🤝 " .. other.DisplayName, Color3.fromRGB(60, 65, 78))
+			entry.Size = UDim2.new(1, -10, 0, 42)
+			entry.MouseButton1Click:Connect(function()
+				tradeEvent:FireServer("request", other.UserId)
+				playerListFrame.Visible = false
+			end)
+		end
+	end
+	if not anyone then
+		local none = Instance.new("TextLabel")
+		none.Size = UDim2.new(1, -10, 0, 60)
+		none.BackgroundTransparency = 1
+		none.Text = "لا يوجد لاعبون آخرون في السيرفر"
+		none.TextColor3 = Color3.fromRGB(200, 200, 200)
+		none.TextScaled = true
+		none.Font = Enum.Font.Gotham
+		none.Parent = playerListScroll
+	end
+end
+
+tradeButton.MouseButton1Click:Connect(function()
+	playerListFrame.Visible = not playerListFrame.Visible
+	if playerListFrame.Visible then
+		rebuildPlayerList()
+	end
+end)
+
+-- ================= نافذة طلب وارد =================
+
+local requestFrame = Instance.new("Frame")
+requestFrame.Size = UDim2.fromOffset(360, 140)
+requestFrame.Position = UDim2.new(0.5, 0, 0, 120)
+requestFrame.AnchorPoint = Vector2.new(0.5, 0)
+requestFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 46)
+requestFrame.Visible = false
+requestFrame.Parent = screenGui
+corner(requestFrame, 14)
+
+local requestLabel = Instance.new("TextLabel")
+requestLabel.Size = UDim2.new(1, -16, 0, 60)
+requestLabel.Position = UDim2.fromOffset(8, 8)
+requestLabel.BackgroundTransparency = 1
+requestLabel.Text = ""
+requestLabel.TextColor3 = Color3.new(1, 1, 1)
+requestLabel.TextScaled = true
+requestLabel.TextWrapped = true
+requestLabel.Font = Enum.Font.GothamBold
+requestLabel.Parent = requestFrame
+
+local acceptButton = makeButton(requestFrame, "✅ قبول", Color3.fromRGB(90, 170, 100))
+acceptButton.Position = UDim2.new(0.5, -130, 1, -55)
+local declineButton = makeButton(requestFrame, "❌ رفض", Color3.fromRGB(200, 70, 70))
+declineButton.Position = UDim2.new(0.5, 10, 1, -55)
+
+local pendingRequesterId: number? = nil
+
+acceptButton.MouseButton1Click:Connect(function()
+	if pendingRequesterId then
+		tradeEvent:FireServer("respond", pendingRequesterId, true)
+		pendingRequesterId = nil
+		requestFrame.Visible = false
+	end
+end)
+
+declineButton.MouseButton1Click:Connect(function()
+	if pendingRequesterId then
+		tradeEvent:FireServer("respond", pendingRequesterId, false)
+		pendingRequesterId = nil
+		requestFrame.Visible = false
+	end
+end)
+
+-- ================= نافذة الصفقة =================
+
+local tradeFrame = Instance.new("Frame")
+tradeFrame.Size = UDim2.fromOffset(720, 480)
+tradeFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+tradeFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+tradeFrame.BackgroundColor3 = Color3.fromRGB(30, 33, 40)
+tradeFrame.Visible = false
+tradeFrame.Parent = screenGui
+corner(tradeFrame, 14)
+
+local tradeTitle = Instance.new("TextLabel")
+tradeTitle.Size = UDim2.new(1, 0, 0, 38)
+tradeTitle.BackgroundTransparency = 1
+tradeTitle.Text = "🤝 صفقة مقايضة"
+tradeTitle.TextColor3 = Color3.new(1, 1, 1)
+tradeTitle.TextScaled = true
+tradeTitle.Font = Enum.Font.GothamBold
+tradeTitle.Parent = tradeFrame
+
+local function makeColumn(xScale: number, title: string): (Frame, TextLabel, ScrollingFrame)
+	local column = Instance.new("Frame")
+	column.Size = UDim2.new(0.32, 0, 1, -110)
+	column.Position = UDim2.new(xScale, 0, 0, 44)
+	column.BackgroundColor3 = Color3.fromRGB(42, 46, 55)
+	column.Parent = tradeFrame
+	corner(column)
+
+	local header = Instance.new("TextLabel")
+	header.Size = UDim2.new(1, 0, 0, 32)
+	header.BackgroundTransparency = 1
+	header.Text = title
+	header.TextColor3 = Color3.fromRGB(255, 215, 100)
+	header.TextScaled = true
+	header.Font = Enum.Font.GothamBold
+	header.Parent = column
+
+	local body = Instance.new("Frame")
+	body.Size = UDim2.new(1, -12, 1, -40)
+	body.Position = UDim2.new(0, 6, 0, 36)
+	body.BackgroundTransparency = 1
+	body.Parent = column
+
+	return column, header, makeScrollList(body)
+end
+
+local _, _, myInventoryScroll = makeColumn(0.01, "🎒 أغراضي (اضغط للإضافة)")
+local _, myOfferHeader, myOfferScroll = makeColumn(0.34, "⬅️ عرضي")
+local _, theirOfferHeader, theirOfferScroll = makeColumn(0.67, "➡️ عرضه")
+
+-- حقل المال
+local moneyBox = Instance.new("TextBox")
+moneyBox.Size = UDim2.fromOffset(150, 38)
+moneyBox.Position = UDim2.new(0, 10, 1, -55)
+moneyBox.BackgroundColor3 = Color3.fromRGB(50, 54, 64)
+moneyBox.PlaceholderText = "💰 مبلغ المال"
+moneyBox.Text = ""
+moneyBox.TextColor3 = Color3.new(1, 1, 1)
+moneyBox.TextScaled = true
+moneyBox.Font = Enum.Font.Gotham
+moneyBox.ClearTextOnFocus = false
+moneyBox.Parent = tradeFrame
+corner(moneyBox)
+
+moneyBox.FocusLost:Connect(function()
+	local amount = tonumber(moneyBox.Text) or 0
+	tradeEvent:FireServer("money", amount)
+end)
+
+local readyButton = makeButton(tradeFrame, "✅ جاهز", Color3.fromRGB(90, 170, 100))
+readyButton.Size = UDim2.fromOffset(150, 42)
+readyButton.Position = UDim2.new(0.5, -75, 1, -58)
+
+local cancelButton = makeButton(tradeFrame, "❌ إلغاء الصفقة", Color3.fromRGB(200, 70, 70))
+cancelButton.Size = UDim2.fromOffset(160, 42)
+cancelButton.Position = UDim2.new(1, -170, 1, -58)
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0, 250, 0, 30)
+statusLabel.Position = UDim2.new(0.5, -125, 1, -95)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = ""
+statusLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.Parent = tradeFrame
+
+local iAmReady = false
+
+readyButton.MouseButton1Click:Connect(function()
+	iAmReady = not iAmReady
+	tradeEvent:FireServer("ready", iAmReady)
+end)
+
+cancelButton.MouseButton1Click:Connect(function()
+	tradeEvent:FireServer("cancel")
+end)
+
+local function clearList(scroll: ScrollingFrame)
+	for _, child in ipairs(scroll:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+end
+
+-- كمية غرض معين داخل عرضى الحالي
+local function countInOffer(offer, category: string, itemName: string): number
+	local bucket = offer.items[category]
+	return bucket and bucket[itemName] or 0
+end
+
+local function rebuildTradeWindow(payload)
+	local mine = payload.mine
+	local theirs = payload.theirs
+
+	-- عمود أغراضي المتاحة (المتبقي بعد ما أضفته للعرض)
+	clearList(myInventoryScroll)
+	if currentData then
+		for _, category in ipairs({ "Crops", "Products", "Seeds", "Tools" }) do
+			for itemName, count in pairs(currentData.Inventory[category]) do
+				local available = count - countInOffer(mine, category, itemName)
+				if available &gt; 0 then
+					local entry = makeButton(myInventoryScroll, displayNameOf(category, itemName) .. " x" .. available, Color3.fromRGB(60, 65, 78))
+					entry.Size = UDim2.new(1, -10, 0, 38)
+					entry.MouseButton1Click:Connect(function()
+						tradeEvent:FireServer("add", category, itemName)
+					end)
+				end
+			end
+		end
+	end
+
+	-- عرضي (اضغط للإزالة)
+	clearList(myOfferScroll)
+	myOfferHeader.Text = mine.ready and "⬅️ عرضي ✅ جاهز" or "⬅️ عرضي"
+	for category, items in pairs(mine.items) do
+		for itemName, count in pairs(items) do
+			local entry = makeButton(myOfferScroll, displayNameOf(category, itemName) .. " x" .. count .. " ➖", Color3.fromRGB(120, 90, 60))
+			entry.Size = UDim2.new(1, -10, 0, 38)
+			entry.MouseButton1Click:Connect(function()
+				tradeEvent:FireServer("remove", category, itemName)
+			end)
+		end
+	end
+	if mine.money &gt; 0 then
+		local moneyEntry = Instance.new("TextLabel")
+		moneyEntry.Size = UDim2.new(1, -10, 0, 38)
+		moneyEntry.BackgroundColor3 = Color3.fromRGB(120, 110, 50)
+		moneyEntry.Text = "💰 " .. mine.money
+		moneyEntry.TextColor3 = Color3.new(1, 1, 1)
+		moneyEntry.TextScaled = true
+		moneyEntry.Font = Enum.Font.GothamBold
+		moneyEntry.Parent = myOfferScroll
+		corner(moneyEntry)
+	end
+
+	-- عرض الطرف الآخر
+	clearList(theirOfferScroll)
+	theirOfferHeader.Text = theirs.ready and ("➡️ عرض " .. payload.partnerName .. " ✅") or ("➡️ عرض " .. payload.partnerName)
+	for category, items in pairs(theirs.items) do
+		for itemName, count in pairs(items) do
+			local entry = Instance.new("TextLabel")
+			entry.Size = UDim2.new(1, -10, 0, 38)
+			entry.BackgroundColor3 = Color3.fromRGB(60, 65, 78)
+			entry.Text = displayNameOf(category, itemName) .. " x" .. count
+			entry.TextColor3 = Color3.new(1, 1, 1)
+			entry.TextScaled = true
+			entry.Font = Enum.Font.Gotham
+			entry.Parent = theirOfferScroll
+			corner(entry)
+		end
+	end
+	if theirs.money &gt; 0 then
+		local moneyEntry = Instance.new("TextLabel")
+		moneyEntry.Size = UDim2.new(1, -10, 0, 38)
+		moneyEntry.BackgroundColor3 = Color3.fromRGB(120, 110, 50)
+		moneyEntry.Text = "💰 " .. theirs.money
+		moneyEntry.TextColor3 = Color3.new(1, 1, 1)
+		moneyEntry.TextScaled = true
+		moneyEntry.Font = Enum.Font.GothamBold
+		moneyEntry.Parent = theirOfferScroll
+		corner(moneyEntry)
+	end
+
+	iAmReady = mine.ready
+	readyButton.Text = mine.ready and "⏳ إلغاء الجاهزية" or "✅ جاهز"
+	readyButton.BackgroundColor3 = mine.ready and Color3.fromRGB(220, 150, 60) or Color3.fromRGB(90, 170, 100)
+
+	if mine.ready and not theirs.ready then
+		statusLabel.Text = "بانتظار موافقة " .. payload.partnerName .. "..."
+	elseif theirs.ready and not mine.ready then
+		statusLabel.Text = payload.partnerName .. " جاهز! اضغط ✅ لإتمام الصفقة"
+	else
+		statusLabel.Text = ""
+	end
+end
+
+-- ================= استقبال أحداث السيرفر =================
+
+tradeEvent.OnClientEvent:Connect(function(action: string, ...)
+	if action == "incoming" then
+		local fromName, fromUserId = ...
+		pendingRequesterId = fromUserId
+		requestLabel.Text = "🤝 " .. tostring(fromName) .. " يريد المقايضة معك!"
+		requestFrame.Visible = true
+	elseif action == "start" then
+		local partnerName = ...
+		tradeTitle.Text = "🤝 مقايضة مع " .. tostring(partnerName)
+		moneyBox.Text = ""
+		iAmReady = false
+		tradeFrame.Visible = true
+		playerListFrame.Visible = false
+	elseif action == "update" then
+		local payload = ...
+		rebuildTradeWindow(payload)
+	elseif action == "closed" then
+		tradeFrame.Visible = false
+		iAmReady = false
+	elseif action == "done" then
+		tradeFrame.Visible = false
+		iAmReady = false
+	end
+end)
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX24"><Properties><string name="Name">MarketUI</string><ProtectedString name="Source">--!strict
+-- واجهة السوق المركزي: تصفح عروض اللاعبين واشترِ، أو اعرض محاصيلك ومنتجاتك للبيع
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local marketEvent = remotes:WaitForChild("MarketEvent") :: RemoteEvent
+local dataChanged = remotes:WaitForChild("DataChanged") :: RemoteEvent
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local currentData: any = nil
+local currentListings: { any } = {}
+
+local function displayNameOf(category: string, itemName: string): string
+	if category == "Crops" then
+		local crop = GameConfig.Crops[itemName]
+		return crop and crop.DisplayName or itemName
+	end
+	local product = GameConfig.AnimalProducts[itemName]
+	return product and product.DisplayName or itemName
+end
+
+-- ================= أدوات واجهة =================
+
+local function corner(parent: Instance, radius: number?)
+	local ui = Instance.new("UICorner")
+	ui.CornerRadius = UDim.new(0, radius or 10)
+	ui.Parent = parent
+end
+
+local function makeButton(parent: Instance, text: string, color: Color3): TextButton
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.fromOffset(120, 40)
+	button.BackgroundColor3 = color
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Parent = parent
+	corner(button)
+	return button
+end
+
+local function makeScrollList(parent: Instance): ScrollingFrame
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.fromScale(1, 1)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 6
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.Parent = parent
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 5)
+	layout.Parent = scroll
+	return scroll
+end
+
+local function clearList(scroll: ScrollingFrame)
+	for _, child in ipairs(scroll:GetChildren()) do
+		if child:IsA("TextButton") or child:IsA("TextLabel") or child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+end
+
+-- ================= النافذة =================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FAMMarketUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local marketButton = makeButton(screenGui, "🛒 السوق", Color3.fromRGB(220, 130, 70))
+marketButton.Position = UDim2.new(0, 10, 0.5, 122)
+
+local panel = Instance.new("Frame")
+panel.Size = UDim2.fromOffset(760, 500)
+panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+panel.AnchorPoint = Vector2.new(0.5, 0.5)
+panel.BackgroundColor3 = Color3.fromRGB(30, 33, 40)
+panel.Visible = false
+panel.Parent = screenGui
+corner(panel, 14)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "🛒 السوق المركزي — بيع وشراء بين اللاعبين"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = panel
+
+local closeButton = makeButton(panel, "✕", Color3.fromRGB(200, 70, 70))
+closeButton.Size = UDim2.fromOffset(34, 34)
+closeButton.Position = UDim2.new(1, -40, 0, 4)
+closeButton.MouseButton1Click:Connect(function()
+	panel.Visible = false
+end)
+
+-- عمود العروض (يسار)
+local listingsFrame = Instance.new("Frame")
+listingsFrame.Size = UDim2.new(0.55, -15, 1, -55)
+listingsFrame.Position = UDim2.new(0, 10, 0, 45)
+listingsFrame.BackgroundColor3 = Color3.fromRGB(42, 46, 55)
+listingsFrame.Parent = panel
+corner(listingsFrame)
+
+local listingsTitle = Instance.new("TextLabel")
+listingsTitle.Size = UDim2.new(1, 0, 0, 32)
+listingsTitle.BackgroundTransparency = 1
+listingsTitle.Text = "📋 العروض المتاحة"
+listingsTitle.TextColor3 = Color3.fromRGB(255, 215, 100)
+listingsTitle.TextScaled = true
+listingsTitle.Font = Enum.Font.GothamBold
+listingsTitle.Parent = listingsFrame
+
+local listingsBody = Instance.new("Frame")
+listingsBody.Size = UDim2.new(1, -12, 1, -40)
+listingsBody.Position = UDim2.new(0, 6, 0, 36)
+listingsBody.BackgroundTransparency = 1
+listingsBody.Parent = listingsFrame
+local listingsScroll = makeScrollList(listingsBody)
+
+-- عمود إنشاء عرض (يمين)
+local sellFrame = Instance.new("Frame")
+sellFrame.Size = UDim2.new(0.45, -15, 1, -55)
+sellFrame.Position = UDim2.new(0.55, 5, 0, 45)
+sellFrame.BackgroundColor3 = Color3.fromRGB(42, 46, 55)
+sellFrame.Parent = panel
+corner(sellFrame)
+
+local sellTitle = Instance.new("TextLabel")
+sellTitle.Size = UDim2.new(1, 0, 0, 32)
+sellTitle.BackgroundTransparency = 1
+sellTitle.Text = "💰 اعرض غرضًا للبيع"
+sellTitle.TextColor3 = Color3.fromRGB(255, 215, 100)
+sellTitle.TextScaled = true
+sellTitle.Font = Enum.Font.GothamBold
+sellTitle.Parent = sellFrame
+
+local myItemsBody = Instance.new("Frame")
+myItemsBody.Size = UDim2.new(1, -12, 1, -190)
+myItemsBody.Position = UDim2.new(0, 6, 0, 36)
+myItemsBody.BackgroundTransparency = 1
+myItemsBody.Parent = sellFrame
+local myItemsScroll = makeScrollList(myItemsBody)
+
+local selectedLabel = Instance.new("TextLabel")
+selectedLabel.Size = UDim2.new(1, -12, 0, 30)
+selectedLabel.Position = UDim2.new(0, 6, 1, -148)
+selectedLabel.BackgroundTransparency = 1
+selectedLabel.Text = "⬆️ اختر غرضًا من الأعلى"
+selectedLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+selectedLabel.TextScaled = true
+selectedLabel.Font = Enum.Font.Gotham
+selectedLabel.Parent = sellFrame
+
+local amountBox = Instance.new("TextBox")
+amountBox.Size = UDim2.new(0.5, -10, 0, 36)
+amountBox.Position = UDim2.new(0, 6, 1, -112)
+amountBox.BackgroundColor3 = Color3.fromRGB(50, 54, 64)
+amountBox.PlaceholderText = "الكمية"
+amountBox.Text = ""
+amountBox.TextColor3 = Color3.new(1, 1, 1)
+amountBox.TextScaled = true
+amountBox.Font = Enum.Font.Gotham
+amountBox.ClearTextOnFocus = false
+amountBox.Parent = sellFrame
+corner(amountBox)
+
+local priceBox = Instance.new("TextBox")
+priceBox.Size = UDim2.new(0.5, -10, 0, 36)
+priceBox.Position = UDim2.new(0.5, 4, 1, -112)
+priceBox.BackgroundColor3 = Color3.fromRGB(50, 54, 64)
+priceBox.PlaceholderText = "💰 السعر الإجمالي"
+priceBox.Text = ""
+priceBox.TextColor3 = Color3.new(1, 1, 1)
+priceBox.TextScaled = true
+priceBox.Font = Enum.Font.Gotham
+priceBox.ClearTextOnFocus = false
+priceBox.Parent = sellFrame
+corner(priceBox)
+
+local listButton = makeButton(sellFrame, "📢 عرض للبيع", Color3.fromRGB(90, 170, 100))
+listButton.Size = UDim2.new(1, -12, 0, 44)
+listButton.Position = UDim2.new(0, 6, 1, -66)
+
+local selectedCategory: string? = nil
+local selectedItem: string? = nil
+
+listButton.MouseButton1Click:Connect(function()
+	if not selectedCategory or not selectedItem then
+		return
+	end
+	local amount = tonumber(amountBox.Text) or 0
+	local price = tonumber(priceBox.Text) or 0
+	marketEvent:FireServer("list", selectedCategory, selectedItem, amount, price)
+	amountBox.Text = ""
+	priceBox.Text = ""
+end)
+
+-- ================= بناء القوائم =================
+
+local function rebuildMyItems()
+	clearList(myItemsScroll)
+	if not currentData then
+		return
+	end
+	local any = false
+	for _, category in ipairs({ "Crops", "Products" }) do
+		for itemName, count in pairs(currentData.Inventory[category]) do
+			if count &gt; 0 then
+				any = true
+				local isSelected = selectedCategory == category and selectedItem == itemName
+				local entry = makeButton(
+					myItemsScroll,
+					displayNameOf(category, itemName) .. " x" .. count .. (isSelected and " ✅" or ""),
+					isSelected and Color3.fromRGB(90, 170, 100) or Color3.fromRGB(60, 65, 78)
+				)
+				entry.Size = UDim2.new(1, -10, 0, 38)
+				entry.MouseButton1Click:Connect(function()
+					selectedCategory = category
+					selectedItem = itemName
+					selectedLabel.Text = "المحدد: " .. displayNameOf(category, itemName)
+					rebuildMyItems()
+				end)
+			end
+		end
+	end
+	if not any then
+		local none = Instance.new("TextLabel")
+		none.Size = UDim2.new(1, -10, 0, 50)
+		none.BackgroundTransparency = 1
+		none.Text = "لا تملك محاصيل أو منتجات للبيع"
+		none.TextColor3 = Color3.fromRGB(200, 200, 200)
+		none.TextScaled = true
+		none.Font = Enum.Font.Gotham
+		none.Parent = myItemsScroll
+	end
+end
+
+local function rebuildListings()
+	clearList(listingsScroll)
+	if #currentListings == 0 then
+		local none = Instance.new("TextLabel")
+		none.Size = UDim2.new(1, -10, 0, 60)
+		none.BackgroundTransparency = 1
+		none.Text = "لا توجد عروض حاليًا — كن أول من يبيع!"
+		none.TextColor3 = Color3.fromRGB(200, 200, 200)
+		none.TextScaled = true
+		none.Font = Enum.Font.Gotham
+		none.Parent = listingsScroll
+		return
+	end
+
+	for _, listing in ipairs(currentListings) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -10, 0, 56)
+		row.BackgroundColor3 = Color3.fromRGB(50, 54, 64)
+		row.Parent = listingsScroll
+		corner(row)
+
+		local isMine = listing.SellerUserId == player.UserId
+
+		local info = Instance.new("TextLabel")
+		info.Size = UDim2.new(1, -110, 1, -6)
+		info.Position = UDim2.fromOffset(8, 3)
+		info.BackgroundTransparency = 1
+		info.Text = displayNameOf(listing.Category, listing.ItemName) .. " x" .. listing.Amount
+			.. "  —  💰 " .. listing.Price
+			.. "\nالبائع: " .. (isMine and "أنت" or listing.SellerName)
+		info.TextColor3 = Color3.new(1, 1, 1)
+		info.TextScaled = true
+		info.TextXAlignment = Enum.TextXAlignment.Left
+		info.Font = Enum.Font.Gotham
+		info.Parent = row
+
+		local action = makeButton(
+			row,
+			isMine and "إلغاء" or "شراء",
+			isMine and Color3.fromRGB(200, 70, 70) or Color3.fromRGB(90, 170, 100)
+		)
+		action.Size = UDim2.fromOffset(90, 38)
+		action.Position = UDim2.new(1, -98, 0.5, -19)
+		action.MouseButton1Click:Connect(function()
+			marketEvent:FireServer(isMine and "cancel" or "buy", listing.Id)
+		end)
+	end
+end
+
+local function openPanel()
+	panel.Visible = true
+	rebuildListings()
+	rebuildMyItems()
+	marketEvent:FireServer("refresh")
+end
+
+marketButton.MouseButton1Click:Connect(function()
+	if panel.Visible then
+		panel.Visible = false
+	else
+		openPanel()
+	end
+end)
+
+-- ================= استقبال أحداث السيرفر =================
+
+marketEvent.OnClientEvent:Connect(function(action: string, payload)
+	if action == "open" then
+		currentListings = payload or {}
+		openPanel()
+	elseif action == "update" then
+		currentListings = payload or {}
+		if panel.Visible then
+			rebuildListings()
+			rebuildMyItems()
+		end
+	end
+end)
+
+dataChanged.OnClientEvent:Connect(function(data)
+	currentData = data
+	if panel.Visible then
+		rebuildMyItems()
+	end
+end)
+</ProtectedString></Properties></Item></Item></Item></roblox>
