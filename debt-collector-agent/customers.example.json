@@ -1,0 +1,20 @@
+[
+  {
+    "phone": "+966500000001",
+    "name": "أحمد محمد",
+    "debt_amount": 4500,
+    "last_payment_date": "2026-05-10",
+    "last_payment_amount": 500,
+    "installment": 500,
+    "currency": "ريال"
+  },
+  {
+    "phone": "+966500000002",
+    "name": "خالد العلي",
+    "debt_amount": 12000,
+    "last_payment_date": "2026-03-01",
+    "last_payment_amount": 1000,
+    "installment": 1000,
+    "currency": "ريال"
+  }
+]
